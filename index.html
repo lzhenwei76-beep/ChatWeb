@@ -1,14 +1,66 @@
+
 <!DOCTYPE html>
 <html lang="de">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NeonChat - Moderner Online Chatroom</title>
+    <title>NeonChat - Moderner Chatroom</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Firebase SDKs (WICHTIG: So einbinden, nicht mit import!) -->
-    <script src="https://www.gstatic.com/firebasejs/10.5.0/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.5.0/firebase-auth.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.5.0/firebase-firestore.js"></script>
+    
+    <script type="module">
+        // Import Firebase modules
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-app.js";
+        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-auth.js";
+        import { getFirestore, collection, addDoc, doc, setDoc, updateDoc, onSnapshot, serverTimestamp, query, orderBy, deleteField } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-firestore.js";
+        import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-analytics.js";
+
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyCaZVf_r56MRIdwrMJdj14ZCTgNmMhMlDk",
+            authDomain: "chatroom-2b0e7.firebaseapp.com",
+            projectId: "chatroom-2b0e7",
+            storageBucket: "chatroom-2b0e7.firebasestorage.app",
+            messagingSenderId: "465248399287",
+            appId: "1:465248399287:web:6739627062490ba719c232",
+            measurementId: "G-QL20XTKGR5"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const analytics = getAnalytics(app);
+
+        // Make Firebase available globally
+        window.firebaseApp = app;
+        window.firebaseAuth = auth;
+        window.firebaseDB = db;
+        window.firebaseSignInAnonymously = signInAnonymously;
+        window.firebaseFunctions = {
+            collection,
+            addDoc,
+            doc,
+            setDoc,
+            updateDoc,
+            onSnapshot,
+            serverTimestamp,
+            query,
+            orderBy,
+            deleteField
+        };
+
+        console.log("✅ Firebase initialized successfully!");
+        
+        // Update status
+        document.addEventListener('DOMContentLoaded', function() {
+            const statusElement = document.getElementById('firebaseStatus');
+            if (statusElement) {
+                statusElement.textContent = '✅ Firebase geladen';
+                statusElement.className = 'status-value success';
+            }
+        });
+    </script>
+
     <style>
         * {
             margin: 0;
@@ -24,12 +76,11 @@
             --accent: #06b6d4;
             --success: #10b981;
             --danger: #ef4444;
+            --warning: #f59e0b;
             --dark: #1e293b;
             --light: #f8fafc;
             --gray: #64748b;
-            --card-bg: rgba(255, 255, 255, 0.95);
             --glass: rgba(255, 255, 255, 0.1);
-            --shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
             --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
@@ -37,435 +88,74 @@
             background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
             color: var(--light);
             min-height: 100vh;
-            overflow-x: hidden;
-        }
-
-        /* Animations */
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        @keyframes slideIn {
-            from { transform: translateX(-20px); opacity: 0; }
-            to { transform: translateX(0); opacity: 1; }
-        }
-
-        @keyframes pulse {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.05); }
-        }
-
-        @keyframes float {
-            0%, 100% { transform: translateY(0px); }
-            50% { transform: translateY(-10px); }
-        }
-
-        @keyframes glow {
-            0%, 100% { box-shadow: 0 0 20px var(--primary); }
-            50% { box-shadow: 0 0 40px var(--accent); }
-        }
-
-        /* Notification Animation */
-        @keyframes notification {
-            0% { transform: translateX(100%); opacity: 0; }
-            10% { transform: translateX(0); opacity: 1; }
-            90% { transform: translateX(0); opacity: 1; }
-            100% { transform: translateX(100%); opacity: 0; }
-        }
-
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
+            display: flex;
+            justify-content: center;
+            align-items: center;
             padding: 20px;
-            animation: fadeIn 0.8s ease-out;
         }
 
-        /* Header */
-        .header {
-            background: var(--glass);
-            backdrop-filter: blur(10px);
-            border-radius: 20px;
-            padding: 25px 40px;
-            margin-bottom: 30px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            animation: slideIn 0.6s ease-out;
-        }
-
-        .logo {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            font-size: 2.2rem;
-            font-weight: 800;
-            background: linear-gradient(135deg, var(--primary), var(--accent));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-
-        .logo i {
-            animation: float 3s ease-in-out infinite;
-            font-size: 2.5rem;
-        }
-
-        /* Main Layout */
-        .main-content {
-            display: grid;
-            grid-template-columns: 300px 1fr;
-            gap: 25px;
-            min-height: 80vh;
-        }
-
-        /* Sidebar */
-        .sidebar {
-            background: var(--glass);
-            backdrop-filter: blur(10px);
-            border-radius: 20px;
-            padding: 25px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            animation: slideIn 0.7s ease-out;
-        }
-
-        .user-info {
-            text-align: center;
-            margin-bottom: 30px;
-            padding-bottom: 20px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .avatar {
-            width: 80px;
-            height: 80px;
-            background: linear-gradient(135deg, var(--primary), var(--secondary));
-            border-radius: 50%;
-            margin: 0 auto 15px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 2rem;
-            animation: glow 3s infinite;
-            transition: var(--transition);
-        }
-
-        .avatar:hover {
-            transform: rotate(10deg) scale(1.1);
-        }
-
-        .username {
-            font-size: 1.3rem;
-            font-weight: 600;
-            margin-bottom: 5px;
-        }
-
-        .status {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            font-size: 0.9rem;
-            color: var(--success);
-        }
-
-        .status-dot {
-            width: 8px;
-            height: 8px;
-            background: var(--success);
-            border-radius: 50%;
-            animation: pulse 2s infinite;
-        }
-
-        /* Rooms Section */
-        .rooms-section {
-            margin-bottom: 30px;
-        }
-
-        .section-title {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-            font-size: 1.2rem;
-            font-weight: 600;
-        }
-
-        .btn-create-room {
-            background: var(--primary);
-            color: white;
-            border: none;
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            cursor: pointer;
-            font-size: 1.2rem;
-            transition: var(--transition);
-        }
-
-        .btn-create-room:hover {
-            background: var(--primary-dark);
-            transform: rotate(90deg);
-        }
-
-        .rooms-list {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-
-        .room-item {
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 12px;
-            padding: 15px;
-            cursor: pointer;
-            transition: var(--transition);
-            border: 1px solid transparent;
-            animation: fadeIn 0.5s ease-out;
-        }
-
-        .room-item:hover {
-            background: rgba(255, 255, 255, 0.1);
-            border-color: var(--primary);
-            transform: translateX(5px);
-        }
-
-        .room-item.active {
-            background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(139, 92, 246, 0.2));
-            border-color: var(--primary);
-        }
-
-        .room-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 8px;
-        }
-
-        .room-name {
-            font-weight: 600;
-            font-size: 1.1rem;
-        }
-
-        .room-users {
-            font-size: 0.8rem;
-            color: var(--accent);
-            background: rgba(6, 182, 212, 0.1);
-            padding: 3px 8px;
-            border-radius: 10px;
-        }
-
-        .room-topic {
-            font-size: 0.9rem;
-            color: var(--gray);
-            display: -webkit-box;
-            -webkit-line-clamp: 2;
-            -webkit-box-orient: vertical;
-            overflow: hidden;
-        }
-
-        /* Chat Area */
-        .chat-area {
-            display: flex;
-            flex-direction: column;
-            background: var(--glass);
-            backdrop-filter: blur(10px);
-            border-radius: 20px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            overflow: hidden;
-            animation: fadeIn 0.8s ease-out;
-        }
-
-        .chat-header {
-            background: rgba(255, 255, 255, 0.05);
-            padding: 20px 30px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .current-room {
-            font-size: 1.4rem;
-            font-weight: 600;
-            margin-bottom: 5px;
-        }
-
-        .room-info {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            font-size: 0.9rem;
-            color: var(--gray);
-        }
-
-        .messages-container {
-            flex: 1;
-            padding: 25px;
-            overflow-y: auto;
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-            background: rgba(15, 23, 42, 0.5);
-        }
-
-        .message {
-            max-width: 70%;
-            padding: 15px 20px;
-            border-radius: 18px;
-            position: relative;
-            animation: fadeIn 0.4s ease-out;
-            transition: var(--transition);
-        }
-
-        .message:hover {
-            transform: translateY(-2px);
-        }
-
-        .message.own {
-            align-self: flex-end;
-            background: linear-gradient(135deg, var(--primary), var(--secondary));
-            border-bottom-right-radius: 5px;
-        }
-
-        .message.other {
-            align-self: flex-start;
-            background: rgba(255, 255, 255, 0.1);
-            border-bottom-left-radius: 5px;
-            backdrop-filter: blur(5px);
-        }
-
-        .message-system {
-            align-self: center;
-            background: rgba(6, 182, 212, 0.1);
-            border: 1px solid var(--accent);
-            text-align: center;
-            max-width: 90%;
-            padding: 10px 20px;
-            border-radius: 12px;
-            color: var(--accent);
-        }
-
-        .message-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 8px;
-        }
-
-        .message-sender {
-            font-weight: 600;
-            font-size: 0.95rem;
-        }
-
-        .message-time {
-            font-size: 0.8rem;
-            opacity: 0.8;
-        }
-
-        .message-content {
-            line-height: 1.5;
-            word-break: break-word;
-        }
-
-        /* Message Input */
-        .message-input-area {
-            padding: 20px 30px;
-            background: rgba(255, 255, 255, 0.05);
-            border-top: 1px solid rgba(255, 255, 255, 0.1);
-            display: flex;
-            gap: 15px;
-        }
-
-        .message-input {
-            flex: 1;
-            background: rgba(255, 255, 255, 0.07);
-            border: 2px solid transparent;
-            border-radius: 15px;
-            padding: 15px 20px;
-            color: white;
-            font-size: 1rem;
-            transition: var(--transition);
-        }
-
-        .message-input:focus {
-            outline: none;
-            border-color: var(--primary);
-            background: rgba(255, 255, 255, 0.1);
-        }
-
-        .btn-send {
-            background: linear-gradient(135deg, var(--primary), var(--secondary));
-            border: none;
-            color: white;
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            cursor: pointer;
-            font-size: 1.2rem;
-            transition: var(--transition);
-        }
-
-        .btn-send:hover {
-            transform: scale(1.1) rotate(10deg);
-            background: linear-gradient(135deg, var(--primary-dark), var(--secondary));
-        }
-
-        /* Login Modal */
-        .modal {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(15, 23, 42, 0.95);
-            backdrop-filter: blur(10px);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-            animation: fadeIn 0.5s ease-out;
-        }
-
-        .modal-content {
+        .login-container {
             background: var(--glass);
             backdrop-filter: blur(20px);
             border-radius: 25px;
             padding: 40px;
-            width: 90%;
-            max-width: 400px;
+            width: 100%;
+            max-width: 450px;
             border: 1px solid rgba(255, 255, 255, 0.1);
-            animation: float 6s ease-in-out infinite;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            animation: fadeIn 0.8s ease-out;
         }
 
-        .modal-title {
-            text-align: center;
-            font-size: 2rem;
-            margin-bottom: 10px;
-            background: linear-gradient(135deg, var(--primary), var(--accent));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
-        .modal-subtitle {
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        .logo {
             text-align: center;
-            color: var(--gray);
             margin-bottom: 30px;
         }
 
+        .logo h1 {
+            font-size: 2.8rem;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+        }
+
+        .logo p {
+            color: var(--gray);
+            font-size: 1.1rem;
+        }
+
         .input-group {
-            margin-bottom: 20px;
+            margin-bottom: 25px;
         }
 
         .input-group label {
             display: block;
-            margin-bottom: 8px;
+            margin-bottom: 10px;
             color: var(--gray);
+            font-size: 0.95rem;
+            font-weight: 500;
         }
 
         .input-group input {
             width: 100%;
-            padding: 15px;
+            padding: 16px 20px;
             background: rgba(255, 255, 255, 0.07);
-            border: 2px solid transparent;
-            border-radius: 12px;
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
             color: white;
             font-size: 1rem;
             transition: var(--transition);
@@ -475,128 +165,247 @@
             outline: none;
             border-color: var(--primary);
             background: rgba(255, 255, 255, 0.1);
+            box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
+        }
+
+        .color-preview {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: inline-block;
+            margin-left: 15px;
+            vertical-align: middle;
+            border: 2px solid rgba(255, 255, 255, 0.2);
         }
 
         .btn-login {
             width: 100%;
-            padding: 15px;
+            padding: 18px;
             background: linear-gradient(135deg, var(--primary), var(--secondary));
             border: none;
-            border-radius: 12px;
+            border-radius: 15px;
             color: white;
             font-size: 1.1rem;
             font-weight: 600;
             cursor: pointer;
             transition: var(--transition);
             margin-top: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            position: relative;
+            overflow: hidden;
         }
 
-        .btn-login:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 25px rgba(99, 102, 241, 0.4);
+        .btn-login:hover:not(:disabled) {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 30px rgba(99, 102, 241, 0.3);
         }
 
-        /* Notification */
+        .btn-login:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .btn-login::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.5s;
+        }
+
+        .btn-login:hover::after {
+            left: 100%;
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .status-box {
+            margin-top: 30px;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.25);
+            border-radius: 15px;
+            border-left: 5px solid var(--accent);
+        }
+
+        .status-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 12px 0;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .status-item:last-child {
+            border-bottom: none;
+        }
+
+        .status-label {
+            color: var(--gray);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status-value {
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+
+        .success { color: var(--success); }
+        .error { color: var(--danger); }
+        .loading { 
+            color: var(--accent); 
+            animation: pulse 2s infinite;
+        }
+
         .notification {
             position: fixed;
-            top: 20px;
-            right: 20px;
+            top: 25px;
+            right: 25px;
             background: linear-gradient(135deg, var(--primary), var(--secondary));
             color: white;
-            padding: 15px 25px;
-            border-radius: 12px;
-            animation: notification 5s ease-in-out;
+            padding: 18px 25px;
+            border-radius: 15px;
             z-index: 1001;
             display: none;
+            animation: slideIn 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.25);
+            max-width: 400px;
+            backdrop-filter: blur(10px);
         }
 
-        /* Online Users */
-        .online-users {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            margin-top: 15px;
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
         }
 
-        .online-user {
+        .test-section {
+            margin-top: 25px;
+            padding: 15px;
+            background: rgba(6, 182, 212, 0.1);
+            border-radius: 12px;
+            border: 1px solid var(--accent);
+        }
+
+        .test-section h3 {
+            color: var(--accent);
+            margin-bottom: 10px;
+            font-size: 1rem;
+        }
+
+        .btn-test {
+            padding: 10px 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid var(--accent);
+            border-radius: 10px;
+            color: var(--accent);
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: var(--transition);
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-test:hover {
+            background: rgba(6, 182, 212, 0.2);
+            transform: translateY(-2px);
+        }
+
+        .tips {
+            margin-top: 20px;
+            padding: 15px;
+            background: rgba(245, 158, 11, 0.1);
+            border-radius: 12px;
+            border-left: 4px solid var(--warning);
+        }
+
+        .tips h4 {
+            color: var(--warning);
+            margin-bottom: 8px;
+            font-size: 0.9rem;
             display: flex;
             align-items: center;
             gap: 8px;
-            background: rgba(255, 255, 255, 0.05);
-            padding: 8px 12px;
+        }
+
+        .tips ul {
+            padding-left: 20px;
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 0.85rem;
+        }
+
+        .tips li {
+            margin: 5px 0;
+        }
+
+        .chat-app {
+            display: none;
+            width: 100%;
+            max-width: 1200px;
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        /* Chat Styles */
+        .chat-container {
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            gap: 20px;
+            height: 85vh;
+        }
+
+        .sidebar {
+            background: var(--glass);
+            backdrop-filter: blur(10px);
             border-radius: 20px;
-            font-size: 0.9rem;
+            padding: 25px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
         }
 
-        .user-dot {
-            width: 8px;
-            height: 8px;
-            background: var(--success);
-            border-radius: 50%;
-        }
-
-        /* Responsive */
-        @media (max-width: 1024px) {
-            .main-content {
-                grid-template-columns: 1fr;
-            }
-            
-            .sidebar {
-                order: 2;
-            }
-            
-            .message {
-                max-width: 85%;
-            }
-        }
-
-        @media (max-width: 640px) {
-            .header {
-                flex-direction: column;
-                gap: 15px;
-                text-align: center;
-            }
-            
-            .message {
-                max-width: 95%;
-            }
-            
-            .room-info {
-                flex-direction: column;
-                align-items: flex-start;
-                gap: 5px;
-            }
-        }
-
-        /* Typing Indicator */
-        .typing-indicator {
-            padding: 10px 20px;
-            font-style: italic;
-            color: var(--accent);
+        .chat-area {
+            background: var(--glass);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
             display: flex;
-            align-items: center;
-            gap: 10px;
+            flex-direction: column;
         }
 
-        .typing-dots {
-            display: flex;
-            gap: 4px;
+        .header {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 20px 30px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px 20px 0 0;
         }
 
-        .typing-dots span {
-            width: 8px;
-            height: 8px;
-            background: var(--accent);
-            border-radius: 50%;
-            animation: typing 1.4s infinite;
+        .messages-container {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
         }
 
-        .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
-        .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
-
-        @keyframes typing {
-            0%, 60%, 100% { transform: translateY(0); }
-            30% { transform: translateY(-10px); }
+        .message-input-area {
+            padding: 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
         }
     </style>
 </head>
@@ -604,637 +413,568 @@
     <!-- Notification -->
     <div class="notification" id="notification"></div>
 
-    <!-- Login Modal -->
-    <div class="modal" id="loginModal">
-        <div class="modal-content">
-            <h1 class="modal-title">
-                <i class="fas fa-comments"></i> NeonChat
+    <!-- Login Screen -->
+    <div class="login-container" id="loginScreen">
+        <div class="logo">
+            <h1>
+                <i class="fas fa-comment-dots"></i>
+                NeonChat
             </h1>
-            <p class="modal-subtitle">Willkommen im modernen Chatroom</p>
-            
-            <div class="input-group">
-                <label for="username">Benutzername</label>
-                <input type="text" id="username" placeholder="Gib deinen Namen ein" maxlength="20">
+            <p>Moderner Chatroom mit Echtzeit-Kommunikation</p>
+        </div>
+
+        <div class="input-group">
+            <label for="username">
+                <i class="fas fa-user"></i> Benutzername
+            </label>
+            <input type="text" id="username" placeholder="Gib deinen Namen ein" maxlength="20" value="ChatUser">
+        </div>
+
+        <div class="input-group">
+            <label for="avatarColor">
+                <i class="fas fa-palette"></i> Avatar-Farbe
+                <span class="color-preview" id="colorPreview" style="background: #6366f1;"></span>
+            </label>
+            <input type="color" id="avatarColor" value="#6366f1">
+        </div>
+
+        <button class="btn-login" id="btnLogin">
+            <i class="fas fa-sign-in-alt"></i>
+            <span id="btnText">Chat betreten</span>
+            <span id="btnLoading" style="display: none;">
+                <span class="loading-spinner"></span> Verbinde...
+            </span>
+        </button>
+
+        <div class="status-box">
+            <div class="status-item">
+                <span class="status-label">
+                    <i class="fas fa-fire"></i> Firebase
+                </span>
+                <span id="firebaseStatus" class="status-value loading">Wird geladen...</span>
             </div>
-            
-            <div class="input-group">
-                <label for="avatarColor">Avatar-Farbe wählen</label>
-                <input type="color" id="avatarColor" value="#6366f1">
+            <div class="status-item">
+                <span class="status-label">
+                    <i class="fas fa-database"></i> Firestore
+                </span>
+                <span id="firestoreStatus" class="status-value loading">Wird geprüft...</span>
             </div>
-            
-            <button class="btn-login" id="btnLogin">
-                <i class="fas fa-sign-in-alt"></i> Chat betreten
+            <div class="status-item">
+                <span class="status-label">
+                    <i class="fas fa-wifi"></i> Verbindung
+                </span>
+                <span id="connectionStatus" class="status-value loading">Prüfe...</span>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h3><i class="fas fa-vial"></i> Verbindung testen</h3>
+            <button class="btn-test" id="btnTestConnection">
+                <i class="fas fa-sync-alt"></i> Firebase testen
             </button>
+            <button class="btn-test" id="btnTestFirestore" style="margin-left: 10px;">
+                <i class="fas fa-database"></i> Firestore testen
+            </button>
+        </div>
+
+        <div class="tips">
+            <h4><i class="fas fa-lightbulb"></i> Wichtige Hinweise</h4>
+            <ul>
+                <li>Stelle sicher, dass Firestore in der Firebase Console aktiviert ist</li>
+                <li>Firestore-Regeln müssen auf "test mode" stehen</li>
+                <li>Bei Fehlern: Browser Console öffnen (F12)</li>
+                <li>Chat funktioniert in Echtzeit zwischen allen Nutzern</li>
+            </ul>
         </div>
     </div>
 
-    <!-- Main App -->
-    <div class="container" id="app" style="display: none;">
-        <!-- Header -->
-        <header class="header">
-            <div class="logo">
-                <i class="fas fa-comment-dots"></i>
-                <span>NeonChat</span>
-            </div>
-            
-            <div class="user-info-mini">
-                <div class="avatar-mini" id="userAvatarMini"></div>
-                <span id="currentUsername"></span>
-            </div>
-        </header>
-
-        <!-- Main Content -->
-        <div class="main-content">
+    <!-- Chat App (wird nach Login angezeigt) -->
+    <div class="chat-app" id="chatApp">
+        <div class="chat-container">
             <!-- Sidebar -->
-            <aside class="sidebar">
-                <!-- User Info -->
-                <div class="user-info">
-                    <div class="avatar" id="userAvatar">
-                        <span id="avatarInitial">U</span>
+            <div class="sidebar">
+                <div class="user-info" style="text-align: center; margin-bottom: 30px;">
+                    <div style="width: 80px; height: 80px; border-radius: 50%; background: #6366f1; margin: 0 auto 15px; display: flex; align-items: center; justify-content: center; font-size: 2rem; font-weight: bold;" id="userAvatar">
+                        C
                     </div>
-                    <h3 class="username" id="sidebarUsername">Benutzer</h3>
-                    <div class="status">
-                        <span class="status-dot"></span>
-                        <span>Online</span>
+                    <h3 id="displayUsername">ChatUser</h3>
+                    <div style="color: var(--success); font-size: 0.9rem; margin-top: 5px;">
+                        <i class="fas fa-circle" style="font-size: 0.7rem;"></i> Online
                     </div>
                 </div>
 
-                <!-- Rooms -->
-                <div class="rooms-section">
-                    <div class="section-title">
-                        <span><i class="fas fa-hashtag"></i> Chaträume</span>
-                        <button class="btn-create-room" id="btnCreateRoom" title="Neuen Raum erstellen">
-                            <i class="fas fa-plus"></i>
-                        </button>
-                    </div>
-                    
-                    <div class="rooms-list" id="roomsList">
-                        <!-- Rooms werden dynamisch geladen -->
+                <div style="margin-bottom: 25px;">
+                    <h4 style="margin-bottom: 15px; color: var(--gray);">
+                        <i class="fas fa-hashtag"></i> Chaträume
+                    </h4>
+                    <div id="roomsList">
+                        <div style="background: rgba(255,255,255,0.05); padding: 15px; border-radius: 10px; margin-bottom: 10px; cursor: pointer;">
+                            <div style="font-weight: bold;">🌟 Allgemein</div>
+                            <div style="font-size: 0.9rem; color: var(--gray);">Allgemeine Unterhaltungen</div>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Online Users -->
-                <div class="rooms-section">
-                    <div class="section-title">
-                        <span><i class="fas fa-users"></i> Online (<span id="onlineCount">0</span>)</span>
-                    </div>
-                    <div class="online-users" id="onlineUsers">
-                        <!-- Online users werden dynamisch geladen -->
+                <div>
+                    <h4 style="margin-bottom: 15px; color: var(--gray);">
+                        <i class="fas fa-users"></i> Online (1)
+                    </h4>
+                    <div id="onlineUsers">
+                        <div style="display: flex; align-items: center; gap: 10px; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 10px; margin-bottom: 8px;">
+                            <div style="width: 10px; height: 10px; background: var(--success); border-radius: 50%;"></div>
+                            <span>ChatUser (Du)</span>
+                        </div>
                     </div>
                 </div>
-            </aside>
+            </div>
 
             <!-- Chat Area -->
-            <main class="chat-area">
-                <!-- Chat Header -->
-                <div class="chat-header">
-                    <h2 class="current-room" id="currentRoom">Willkommen bei NeonChat!</h2>
-                    <div class="room-info">
-                        <span><i class="fas fa-users"></i> <span id="roomUserCount">0</span> Benutzer</span>
-                        <span><i class="fas fa-comment"></i> <span id="messageCount">0</span> Nachrichten</span>
+            <div class="chat-area">
+                <div class="header">
+                    <h2 id="currentRoom">🌟 Allgemein</h2>
+                    <div style="color: var(--gray); font-size: 0.9rem; margin-top: 5px;">
+                        <i class="fas fa-users"></i> <span id="roomUserCount">1</span> Benutzer online
                     </div>
                 </div>
 
-                <!-- Messages -->
                 <div class="messages-container" id="messagesContainer">
-                    <div class="message message-system">
-                        Willkommen im NeonChat! Wähle einen Raum aus der Sidebar oder erstelle einen neuen.
+                    <div style="text-align: center; color: var(--gray); padding: 20px;">
+                        <i class="fas fa-comments" style="font-size: 3rem; margin-bottom: 20px; opacity: 0.5;"></i>
+                        <h3>Willkommen im Chat!</h3>
+                        <p style="margin-top: 10px;">Deine Nachrichten erscheinen hier...</p>
                     </div>
                 </div>
 
-                <!-- Typing Indicator -->
-                <div class="typing-indicator" id="typingIndicator" style="display: none;">
-                    <div class="typing-dots">
-                        <span></span>
-                        <span></span>
-                        <span></span>
-                    </div>
-                    <span id="typingUsers"></span>
-                </div>
-
-                <!-- Message Input -->
                 <div class="message-input-area">
-                    <input type="text" 
-                           class="message-input" 
-                           id="messageInput" 
-                           placeholder="Schreibe eine Nachricht..." 
-                           disabled>
-                    <button class="btn-send" id="btnSend" disabled>
-                        <i class="fas fa-paper-plane"></i>
-                    </button>
+                    <div style="display: flex; gap: 10px;">
+                        <input type="text" 
+                               id="messageInput" 
+                               placeholder="Schreibe eine Nachricht..." 
+                               style="flex: 1; padding: 15px; background: rgba(255,255,255,0.07); border: none; border-radius: 12px; color: white;">
+                        <button id="sendButton" 
+                                style="padding: 15px 25px; background: linear-gradient(135deg, var(--primary), var(--secondary)); border: none; border-radius: 12px; color: white; cursor: pointer;">
+                            <i class="fas fa-paper-plane"></i> Senden
+                        </button>
+                    </div>
                 </div>
-            </main>
+            </div>
         </div>
     </div>
 
     <script>
-        // 🔥 HIER DEINE FIREBASE-KONFIG EINFÜGEN 🔥
-        const firebaseConfig = {
-            apiKey: "AIzaSyCaZVf_r56MRIdwrMJdj14ZCTgNmMhMlDk",
-            authDomain: "chatroom-2b0e7.firebaseapp.com",
-            projectId: "chatroom-2b0e7",
-            storageBucket: "chatroom-2b0e7.firebasestorage.app",
-            messagingSenderId: "465248399287",
-            appId: "1:465248399287:web:6739627062490ba719c232",
-            measurementId: "G-QL20XTKGR5"
-        };
-
-        // Firebase initialisieren
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.firestore();
-        const auth = firebase.auth();
-
-        // App Zustand
-        let currentUser = null;
-        let currentRoom = null;
-        let rooms = [];
-        let users = new Map();
-        let typingUsers = new Set();
-        let typingTimeout = null;
-
-        // DOM Elemente
-        const loginModal = document.getElementById('loginModal');
-        const appContainer = document.getElementById('app');
+        // DOM Elements
+        const loginScreen = document.getElementById('loginScreen');
+        const chatApp = document.getElementById('chatApp');
         const usernameInput = document.getElementById('username');
         const avatarColorInput = document.getElementById('avatarColor');
+        const colorPreview = document.getElementById('colorPreview');
         const btnLogin = document.getElementById('btnLogin');
-        const btnCreateRoom = document.getElementById('btnCreateRoom');
-        const roomsList = document.getElementById('roomsList');
-        const currentRoomTitle = document.getElementById('currentRoom');
-        const messagesContainer = document.getElementById('messagesContainer');
-        const messageInput = document.getElementById('messageInput');
-        const btnSend = document.getElementById('btnSend');
-        const onlineUsers = document.getElementById('onlineUsers');
-        const onlineCount = document.getElementById('onlineCount');
-        const roomUserCount = document.getElementById('roomUserCount');
-        const messageCount = document.getElementById('messageCount');
-        const typingIndicator = document.getElementById('typingIndicator');
-        const typingUsersSpan = document.getElementById('typingUsers');
+        const btnText = document.getElementById('btnText');
+        const btnLoading = document.getElementById('btnLoading');
+        const btnTestConnection = document.getElementById('btnTestConnection');
+        const btnTestFirestore = document.getElementById('btnTestFirestore');
         const notification = document.getElementById('notification');
+        const firestoreStatus = document.getElementById('firestoreStatus');
+        const connectionStatus = document.getElementById('connectionStatus');
+        const displayUsername = document.getElementById('displayUsername');
         const userAvatar = document.getElementById('userAvatar');
-        const avatarInitial = document.getElementById('avatarInitial');
-        const sidebarUsername = document.getElementById('sidebarUsername');
-        const currentUsername = document.getElementById('currentUsername');
-        const userAvatarMini = document.getElementById('userAvatarMini');
+        const messageInput = document.getElementById('messageInput');
+        const sendButton = document.getElementById('sendButton');
+        const messagesContainer = document.getElementById('messagesContainer');
+        const onlineUsers = document.getElementById('onlineUsers');
+        const roomsList = document.getElementById('roomsList');
+        const currentRoom = document.getElementById('currentRoom');
+        const roomUserCount = document.getElementById('roomUserCount');
 
-        // Initiale Räume
-        const initialRooms = [
-            {
-                id: "general",
-                name: "🌟 Allgemein",
-                topic: "Allgemeine Unterhaltungen",
-                users: 0
-            },
-            {
-                id: "gaming",
-                name: "🎮 Gaming",
-                topic: "Über Spiele und Gaming",
-                users: 0
-            },
-            {
-                id: "music",
-                name: "🎵 Musik",
-                topic: "Musik aller Art",
-                users: 0
-            },
-            {
-                id: "tech",
-                name: "💻 Tech Talk",
-                topic: "Technologie und Programmierung",
-                users: 0
-            }
-        ];
+        // App State
+        let currentUser = null;
+        let currentRoomId = 'general';
+        let rooms = [];
 
-        // Benutzer anmelden
-        btnLogin.addEventListener('click', loginUser);
-        usernameInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') loginUser();
+        // Update color preview
+        avatarColorInput.addEventListener('input', function() {
+            colorPreview.style.background = this.value;
         });
 
+        // Show notification
+        function showNotification(message, type = 'info') {
+            notification.textContent = message;
+            notification.style.display = 'block';
+            
+            setTimeout(() => {
+                notification.style.display = 'none';
+            }, 4000);
+        }
+
+        // Test Firebase Connection
+        btnTestConnection.addEventListener('click', async function() {
+            try {
+                if (!window.firebaseAuth) {
+                    showNotification('Firebase ist nicht geladen', 'error');
+                    return;
+                }
+                
+                showNotification('Teste Firebase-Verbindung...', 'info');
+                const auth = window.firebaseAuth;
+                
+                // Try anonymous auth
+                await window.firebaseSignInAnonymously(auth);
+                showNotification('✅ Firebase-Verbindung erfolgreich!', 'success');
+                connectionStatus.textContent = '✅ Verbunden';
+                connectionStatus.className = 'status-value success';
+                
+            } catch (error) {
+                console.error('Firebase Test Error:', error);
+                showNotification('❌ Firebase-Fehler: ' + error.message, 'error');
+                connectionStatus.textContent = '❌ Fehler';
+                connectionStatus.className = 'status-value error';
+            }
+        });
+
+        // Test Firestore Connection
+        btnTestFirestore.addEventListener('click', async function() {
+            try {
+                if (!window.firebaseDB || !window.firebaseFunctions) {
+                    showNotification('Firestore ist nicht geladen', 'error');
+                    return;
+                }
+                
+                showNotification('Teste Firestore-Verbindung...', 'info');
+                const db = window.firebaseDB;
+                const { collection, addDoc, deleteDoc, doc } = window.firebaseFunctions;
+                
+                // Create test document
+                const testRef = await addDoc(collection(db, 'test'), {
+                    test: true,
+                    timestamp: new Date().toISOString(),
+                    message: 'Firestore Test erfolgreich'
+                });
+                
+                // Delete test document
+                await deleteDoc(doc(db, 'test', testRef.id));
+                
+                showNotification('✅ Firestore-Verbindung erfolgreich!', 'success');
+                firestoreStatus.textContent = '✅ Verbunden';
+                firestoreStatus.className = 'status-value success';
+                
+            } catch (error) {
+                console.error('Firestore Test Error:', error);
+                showNotification('❌ Firestore-Fehler: ' + error.message, 'error');
+                firestoreStatus.textContent = '❌ Fehler';
+                firestoreStatus.className = 'status-value error';
+            }
+        });
+
+        // Login Function
         async function loginUser() {
             const username = usernameInput.value.trim();
             const avatarColor = avatarColorInput.value;
             
             if (!username || username.length < 2) {
-                showNotification("Bitte gib einen gültigen Namen ein (mind. 2 Zeichen)");
+                showNotification('Bitte gib einen gültigen Namen ein (mind. 2 Zeichen)', 'error');
                 return;
             }
 
+            // Show loading state
+            btnLogin.disabled = true;
+            btnText.style.display = 'none';
+            btnLoading.style.display = 'inline';
+
             try {
-                // Anonym anmelden
-                const userCredential = await auth.signInAnonymously();
+                // 1. Sign in anonymously
+                const auth = window.firebaseAuth;
+                const userCredential = await window.firebaseSignInAnonymously(auth);
+                
                 currentUser = {
                     uid: userCredential.user.uid,
                     username: username,
                     avatarColor: avatarColor,
                     status: 'online',
-                    lastSeen: new Date(),
-                    currentRoom: null
+                    lastSeen: new Date()
                 };
 
-                // Avatar initialisieren
-                const initial = username.charAt(0).toUpperCase();
-                avatarInitial.textContent = initial;
-                sidebarUsername.textContent = username;
-                currentUsername.textContent = username;
+                // 2. Update UI
+                displayUsername.textContent = username;
+                userAvatar.textContent = username.charAt(0).toUpperCase();
                 userAvatar.style.background = avatarColor;
-                userAvatarMini.style.background = avatarColor;
-                userAvatarMini.textContent = initial;
-                userAvatarMini.className = "avatar-mini";
-                userAvatarMini.style.cssText = `
-                    width: 35px;
-                    height: 35px;
-                    border-radius: 50%;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    font-weight: bold;
-                    color: white;
-                `;
-
-                // Benutzer in Firestore speichern
-                await db.collection('users').doc(currentUser.uid).set({
+                
+                // 3. Create user in Firestore
+                const db = window.firebaseDB;
+                const { doc, setDoc, serverTimestamp } = window.firebaseFunctions;
+                
+                await setDoc(doc(db, 'users', currentUser.uid), {
                     ...currentUser,
-                    lastSeen: firebase.firestore.FieldValue.serverTimestamp()
+                    lastSeen: serverTimestamp()
+                });
+
+                // 4. Create initial room if not exists
+                await setDoc(doc(db, 'rooms', 'general'), {
+                    name: '🌟 Allgemein',
+                    topic: 'Allgemeine Unterhaltungen',
+                    createdAt: serverTimestamp(),
+                    createdBy: currentUser.uid,
+                    userCount: 1
                 }, { merge: true });
 
-                // Initiale Räume erstellen (falls nicht existieren)
-                await createInitialRooms();
-
-                // Modus wechseln
-                loginModal.style.display = 'none';
-                appContainer.style.display = 'block';
+                // 5. Switch to chat interface
+                loginScreen.style.display = 'none';
+                chatApp.style.display = 'block';
                 
-                // Event Listeners setzen
-                setupEventListeners();
+                showNotification(`Willkommen, ${username}! 🎉`, 'success');
                 
-                // Räume laden
+                // 6. Load rooms and messages
                 loadRooms();
-                
-                // Online Status setzen
-                updateUserStatus('online');
-                
-                showNotification(`Willkommen, ${username}! 👋`);
+                loadMessages('general');
+                setupOnlineUsers();
                 
             } catch (error) {
-                console.error("Login error:", error);
-                showNotification("Fehler beim Einloggen. Bitte versuche es erneut.");
-            }
-        }
-
-        async function createInitialRooms() {
-            try {
-                for (const room of initialRooms) {
-                    const roomRef = db.collection('rooms').doc(room.id);
-                    const roomDoc = await roomRef.get();
-                    
-                    if (!roomDoc.exists) {
-                        await roomRef.set({
-                            name: room.name,
-                            topic: room.topic,
-                            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-                            createdBy: currentUser.uid,
-                            userCount: 0
-                        });
-                    }
-                }
-            } catch (error) {
-                console.error("Error creating initial rooms:", error);
-            }
-        }
-
-        function setupEventListeners() {
-            // Raum erstellen
-            btnCreateRoom.addEventListener('click', createRoom);
-            
-            // Nachricht senden
-            btnSend.addEventListener('click', sendMessage);
-            messageInput.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    sendMessage();
-                }
-            });
-            
-            // Typing Indicator
-            messageInput.addEventListener('input', handleTyping);
-            
-            // Fenster schließen
-            window.addEventListener('beforeunload', () => {
-                if (currentUser) {
-                    updateUserStatus('offline');
-                }
-            });
-        }
-
-        async function createRoom() {
-            const roomName = prompt("Name des neuen Raums:");
-            if (!roomName || roomName.trim().length < 3) {
-                showNotification("Raumname muss mindestens 3 Zeichen haben");
-                return;
-            }
-            
-            const roomTopic = prompt("Thema/Beschreibung:");
-            const roomId = Date.now().toString();
-            
-            try {
-                const room = {
-                    id: roomId,
-                    name: roomName,
-                    topic: roomTopic || "Neuer Chatraum",
-                    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-                    createdBy: currentUser.uid,
-                    userCount: 0
-                };
+                console.error('Login Error:', error);
+                showNotification('Login fehlgeschlagen: ' + error.message, 'error');
                 
-                await db.collection('rooms').doc(roomId).set(room);
-                showNotification(`Raum "${roomName}" erstellt! 🎉`);
-                
-            } catch (error) {
-                console.error("Error creating room:", error);
-                showNotification("Fehler beim Erstellen des Raums");
+                // Reset button state
+                btnLogin.disabled = false;
+                btnText.style.display = 'inline';
+                btnLoading.style.display = 'none';
             }
         }
 
+        // Load Rooms
         async function loadRooms() {
-            db.collection('rooms').orderBy('createdAt', 'asc').onSnapshot((snapshot) => {
-                roomsList.innerHTML = '';
-                rooms = [];
-                
-                snapshot.forEach(doc => {
-                    const room = { id: doc.id, ...doc.data() };
-                    rooms.push(room);
-                    
-                    const roomElement = document.createElement('div');
-                    roomElement.className = `room-item ${currentRoom?.id === room.id ? 'active' : ''}`;
-                    roomElement.innerHTML = `
-                        <div class="room-header">
-                            <div class="room-name">${room.name}</div>
-                            <div class="room-users">${room.userCount || 0} 👤</div>
-                        </div>
-                        <div class="room-topic">${room.topic || 'Keine Beschreibung'}</div>
-                    `;
-                    
-                    roomElement.addEventListener('click', () => joinRoom(room));
-                    roomsList.appendChild(roomElement);
-                });
-            });
-        }
-
-        async function joinRoom(room) {
-            if (currentRoom?.id === room.id) return;
-            
-            // Alten Raum verlassen
-            if (currentRoom) {
-                await leaveRoom(currentRoom);
-            }
-            
-            // Neuen Raum betreten
-            currentRoom = room;
-            currentRoomTitle.textContent = room.name;
-            
-            // UI aktualisieren
-            document.querySelectorAll('.room-item').forEach(item => {
-                item.classList.remove('active');
-            });
-            
-            // Aktiven Raum markieren
-            setTimeout(() => {
-                const roomElements = document.querySelectorAll('.room-item');
-                roomElements.forEach(element => {
-                    if (element.querySelector('.room-name').textContent === room.name) {
-                        element.classList.add('active');
-                    }
-                });
-            }, 100);
-            
-            // Nachrichten für diesen Raum laden
-            loadMessages(room.id);
-            
-            // Benutzerstatus aktualisieren
-            await updateUserStatus('online', room.id);
-            
-            // Nachrichteneingabe aktivieren
-            messageInput.disabled = false;
-            btnSend.disabled = false;
-            messageInput.focus();
-            
-            // Systemnachricht anzeigen
-            addSystemMessage(`Du bist dem Raum "${room.name}" beigetreten.`);
-        }
-
-        async function leaveRoom(room) {
-            if (!room || !currentUser) return;
-            
             try {
-                await db.collection('rooms').doc(room.id).update({
-                    userCount: firebase.firestore.FieldValue.increment(-1)
-                });
+                const db = window.firebaseDB;
+                const { collection, onSnapshot } = window.firebaseFunctions;
                 
-                // Typing status zurücksetzen
-                await updateTypingStatus(false);
-            } catch (error) {
-                console.error("Error leaving room:", error);
-            }
-        }
-
-        async function updateUserStatus(status, roomId = null) {
-            if (!currentUser) return;
-            
-            try {
-                const updates = {
-                    status: status,
-                    lastSeen: firebase.firestore.FieldValue.serverTimestamp(),
-                    currentRoom: roomId
-                };
-                
-                if (roomId) {
-                    // Raum User Count aktualisieren
-                    await db.collection('rooms').doc(roomId).update({
-                        userCount: firebase.firestore.FieldValue.increment(1)
+                onSnapshot(collection(db, 'rooms'), (snapshot) => {
+                    roomsList.innerHTML = '';
+                    rooms = [];
+                    
+                    snapshot.forEach((doc) => {
+                        const room = { id: doc.id, ...doc.data() };
+                        rooms.push(room);
+                        
+                        const roomElement = document.createElement('div');
+                        roomElement.style.cssText = `
+                            background: ${room.id === currentRoomId ? 'rgba(99, 102, 241, 0.2)' : 'rgba(255,255,255,0.05)'};
+                            padding: 15px;
+                            border-radius: 10px;
+                            margin-bottom: 10px;
+                            cursor: pointer;
+                            border: ${room.id === currentRoomId ? '1px solid var(--primary)' : '1px solid transparent'};
+                            transition: var(--transition);
+                        `;
+                        roomElement.innerHTML = `
+                            <div style="font-weight: bold; margin-bottom: 5px;">${room.name}</div>
+                            <div style="font-size: 0.9rem; color: var(--gray);">${room.topic || 'Keine Beschreibung'}</div>
+                            <div style="font-size: 0.8rem; color: var(--accent); margin-top: 8px;">
+                                <i class="fas fa-users"></i> ${room.userCount || 0} Benutzer
+                            </div>
+                        `;
+                        
+                        roomElement.addEventListener('click', () => joinRoom(room.id));
+                        roomsList.appendChild(roomElement);
                     });
+                });
+                
+            } catch (error) {
+                console.error('Load Rooms Error:', error);
+            }
+        }
+
+        // Join Room
+        async function joinRoom(roomId) {
+            try {
+                currentRoomId = roomId;
+                const room = rooms.find(r => r.id === roomId);
+                if (room) {
+                    currentRoom.textContent = room.name;
+                    roomUserCount.textContent = room.userCount || 1;
                 }
                 
-                await db.collection('users').doc(currentUser.uid).update(updates);
+                loadMessages(roomId);
+                loadRooms(); // Update room highlighting
+                
             } catch (error) {
-                console.error("Error updating user status:", error);
+                console.error('Join Room Error:', error);
             }
         }
 
-        function loadMessages(roomId) {
-            messagesContainer.innerHTML = `
-                <div class="message message-system">
-                    Lade Nachrichten...
-                </div>
-            `;
-            
-            db.collection('rooms').doc(roomId).collection('messages')
-                .orderBy('timestamp', 'asc')
-                .limit(100)
-                .onSnapshot((snapshot) => {
+        // Load Messages
+        async function loadMessages(roomId) {
+            try {
+                const db = window.firebaseDB;
+                const { collection, query, orderBy, onSnapshot } = window.firebaseFunctions;
+                
+                const messagesQuery = query(
+                    collection(db, 'rooms', roomId, 'messages'),
+                    orderBy('timestamp', 'asc')
+                );
+                
+                onSnapshot(messagesQuery, (snapshot) => {
                     messagesContainer.innerHTML = '';
-                    let msgCount = 0;
                     
-                    snapshot.forEach(doc => {
+                    if (snapshot.empty) {
+                        messagesContainer.innerHTML = `
+                            <div style="text-align: center; color: var(--gray); padding: 40px;">
+                                <i class="fas fa-comment-slash" style="font-size: 3rem; margin-bottom: 20px; opacity: 0.5;"></i>
+                                <h3>Noch keine Nachrichten</h3>
+                                <p style="margin-top: 10px;">Sei der Erste, der etwas schreibt!</p>
+                            </div>
+                        `;
+                        return;
+                    }
+                    
+                    snapshot.forEach((doc) => {
                         const message = doc.data();
                         addMessageToUI(message);
-                        msgCount++;
                     });
                     
-                    messageCount.textContent = msgCount;
+                    // Scroll to bottom
                     messagesContainer.scrollTop = messagesContainer.scrollHeight;
-                    
-                    // Typing listener für diesen Raum
-                    setupTypingListener(roomId);
                 });
+                
+            } catch (error) {
+                console.error('Load Messages Error:', error);
+                messagesContainer.innerHTML = `
+                    <div style="color: var(--danger); padding: 20px; text-align: center;">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        Fehler beim Laden der Nachrichten
+                    </div>
+                `;
+            }
         }
 
+        // Add Message to UI
         function addMessageToUI(message) {
             const messageDiv = document.createElement('div');
             const isOwn = message.senderId === currentUser?.uid;
-            const isSystem = message.type === 'system';
-            
-            messageDiv.className = `message ${isOwn ? 'own' : isSystem ? 'message-system' : 'other'}`;
-            
             const time = message.timestamp?.toDate ? 
-                message.timestamp.toDate().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : 
+                message.timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 
                 'Jetzt';
             
+            messageDiv.style.cssText = `
+                margin-bottom: 15px;
+                max-width: 70%;
+                ${isOwn ? 'margin-left: auto;' : 'margin-right: auto;'}
+            `;
+            
             messageDiv.innerHTML = `
-                <div class="message-header">
-                    <div class="message-sender">${message.senderName || 'System'}</div>
-                    <div class="message-time">${time}</div>
+                <div style="
+                    background: ${isOwn ? 'linear-gradient(135deg, var(--primary), var(--secondary))' : 'rgba(255,255,255,0.1)'};
+                    padding: 15px;
+                    border-radius: 18px;
+                    border-bottom-${isOwn ? 'right' : 'left'}-radius: 5px;
+                    backdrop-filter: blur(10px);
+                ">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 0.9rem;">
+                        <span style="font-weight: bold;">${message.senderName || 'Unbekannt'}</span>
+                        <span style="opacity: 0.7;">${time}</span>
+                    </div>
+                    <div>${message.text}</div>
                 </div>
-                <div class="message-content">${message.text}</div>
             `;
             
             messagesContainer.appendChild(messageDiv);
         }
 
-        function addSystemMessage(text) {
-            const messageDiv = document.createElement('div');
-            messageDiv.className = 'message message-system';
-            messageDiv.textContent = text;
-            messagesContainer.appendChild(messageDiv);
-            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        // Setup Online Users
+        async function setupOnlineUsers() {
+            try {
+                const db = window.firebaseDB;
+                const { collection, onSnapshot, query, where } = window.firebaseFunctions;
+                
+                const usersQuery = query(
+                    collection(db, 'users'),
+                    where('status', '==', 'online')
+                );
+                
+                onSnapshot(usersQuery, (snapshot) => {
+                    onlineUsers.innerHTML = '';
+                    let userCount = 0;
+                    
+                    snapshot.forEach((doc) => {
+                        const user = doc.data();
+                        userCount++;
+                        
+                        if (user.uid !== currentUser?.uid) {
+                            const userElement = document.createElement('div');
+                            userElement.style.cssText = `
+                                display: flex;
+                                align-items: center;
+                                gap: 10px;
+                                padding: 10px;
+                                background: rgba(255,255,255,0.05);
+                                border-radius: 10px;
+                                margin-bottom: 8px;
+                            `;
+                            userElement.innerHTML = `
+                                <div style="width: 10px; height: 10px; background: var(--success); border-radius: 50%;"></div>
+                                <span>${user.username}</span>
+                            `;
+                            onlineUsers.appendChild(userElement);
+                        }
+                    });
+                    
+                    // Update count
+                    document.querySelector('.sidebar h4').innerHTML = `
+                        <i class="fas fa-users"></i> Online (${userCount})
+                    `;
+                });
+                
+            } catch (error) {
+                console.error('Setup Online Users Error:', error);
+            }
         }
 
+        // Send Message
         async function sendMessage() {
             const text = messageInput.value.trim();
-            if (!text || !currentRoom || !currentUser) return;
+            if (!text || !currentRoomId || !currentUser) return;
             
             try {
+                const db = window.firebaseDB;
+                const { collection, addDoc, serverTimestamp } = window.firebaseFunctions;
+                
                 const message = {
                     text: text,
                     senderId: currentUser.uid,
                     senderName: currentUser.username,
-                    timestamp: firebase.firestore.FieldValue.serverTimestamp(),
-                    roomId: currentRoom.id,
-                    type: 'text'
+                    timestamp: serverTimestamp(),
+                    roomId: currentRoomId
                 };
                 
-                await db.collection('rooms').doc(currentRoom.id).collection('messages').add(message);
+                await addDoc(collection(db, 'rooms', currentRoomId, 'messages'), message);
                 messageInput.value = '';
-                
-                // Typing status zurücksetzen
-                await updateTypingStatus(false);
+                messageInput.focus();
                 
             } catch (error) {
-                console.error("Error sending message:", error);
-                showNotification("Fehler beim Senden der Nachricht");
+                console.error('Send Message Error:', error);
+                showNotification('Fehler beim Senden der Nachricht', 'error');
             }
         }
 
-        function handleTyping() {
-            if (!currentRoom || !currentUser) return;
-            
-            // Typing status setzen
-            updateTypingStatus(true);
-            
-            // Timeout zurücksetzen
-            clearTimeout(typingTimeout);
-            typingTimeout = setTimeout(() => {
-                updateTypingStatus(false);
-            }, 2000);
-        }
-
-        async function updateTypingStatus(isTyping) {
-            if (!currentRoom || !currentUser) return;
-            
-            try {
-                await db.collection('rooms').doc(currentRoom.id).collection('typing')
-                    .doc(currentUser.uid).set({
-                        username: currentUser.username,
-                        isTyping: isTyping,
-                        timestamp: firebase.firestore.FieldValue.serverTimestamp()
-                    }, { merge: true });
-            } catch (error) {
-                console.error("Error updating typing status:", error);
-            }
-        }
-
-        function setupTypingListener(roomId) {
-            db.collection('rooms').doc(roomId).collection('typing')
-                .onSnapshot((snapshot) => {
-                    typingUsers.clear();
-                    snapshot.forEach(doc => {
-                        const data = doc.data();
-                        if (data.isTyping && data.username !== currentUser.username) {
-                            typingUsers.add(data.username);
-                        }
-                    });
-                    
-                    if (typingUsers.size > 0) {
-                        const names = Array.from(typingUsers).slice(0, 3);
-                        let text = names.join(', ');
-                        if (typingUsers.size > 3) {
-                            text += ` und ${typingUsers.size - 3} weitere`;
-                        }
-                        
-                        typingUsersSpan.textContent = `${text} schreibt${typingUsers.size > 1 ? 'n' : ''}...`;
-                        typingIndicator.style.display = 'flex';
-                    } else {
-                        typingIndicator.style.display = 'none';
-                    }
-                });
-        }
-
-        // Online Users verfolgen
-        db.collection('users').where('status', '==', 'online').onSnapshot((snapshot) => {
-            onlineUsers.innerHTML = '';
-            const onlineUsersList = [];
-            
-            snapshot.forEach(doc => {
-                const user = doc.data();
-                if (user.uid !== currentUser?.uid) {
-                    onlineUsersList.push(user);
-                    
-                    const userElement = document.createElement('div');
-                    userElement.className = 'online-user';
-                    userElement.innerHTML = `
-                        <div class="user-dot"></div>
-                        <span>${user.username}</span>
-                    `;
-                    onlineUsers.appendChild(userElement);
-                }
-            });
-            
-            onlineCount.textContent = onlineUsersList.length + 1; // + aktueller User
+        // Event Listeners
+        btnLogin.addEventListener('click', loginUser);
+        
+        usernameInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') loginUser();
         });
+        
+        messageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+        
+        sendButton.addEventListener('click', sendMessage);
 
-        // Hilfsfunktionen
-        function showNotification(text, duration = 3000) {
-            notification.textContent = text;
-            notification.style.display = 'block';
-            
-            setTimeout(() => {
-                notification.style.display = 'none';
-            }, duration);
-        }
-
-        // Autofocus auf Username Input
-        window.addEventListener('load', () => {
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            // Auto-focus username input
             usernameInput.focus();
+            
+            // Update color preview
+            colorPreview.style.background = avatarColorInput.value;
         });
     </script>
 </body>
