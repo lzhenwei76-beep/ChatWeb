@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>NeonChat - Moderner Online Chatroom</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Firebase SDKs (WICHTIG: So einbinden, nicht mit import!) -->
     <script src="https://www.gstatic.com/firebasejs/10.5.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.5.0/firebase-auth.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.5.0/firebase-firestore.js"></script>
@@ -727,14 +728,15 @@
     </div>
 
     <script>
-        // Firebase Konfiguration (Eigene Keys hier einfügen!)
+        // 🔥 HIER DEINE FIREBASE-KONFIG EINFÜGEN 🔥
         const firebaseConfig = {
-            apiKey: "AIzaSyDDeAdBeDadaKeyHierEinfuegen123",
-            authDomain: "dein-chatroom.firebaseapp.com",
-            projectId: "dein-chatroom",
-            storageBucket: "dein-chatroom.appspot.com",
-            messagingSenderId: "123456789012",
-            appId: "1:123456789012:web:abcdef1234567890"
+            apiKey: "AIzaSyCaZVf_r56MRIdwrMJdj14ZCTgNmMhMlDk",
+            authDomain: "chatroom-2b0e7.firebaseapp.com",
+            projectId: "chatroom-2b0e7",
+            storageBucket: "chatroom-2b0e7.firebasestorage.app",
+            messagingSenderId: "465248399287",
+            appId: "1:465248399287:web:6739627062490ba719c232",
+            measurementId: "G-QL20XTKGR5"
         };
 
         // Firebase initialisieren
@@ -819,7 +821,7 @@
             }
 
             try {
-                // Anonym anmelden (oder mit eigener Auth-Logik)
+                // Anonym anmelden
                 const userCredential = await auth.signInAnonymously();
                 currentUser = {
                     uid: userCredential.user.uid,
@@ -856,7 +858,7 @@
                     lastSeen: firebase.firestore.FieldValue.serverTimestamp()
                 }, { merge: true });
 
-                // Initiale Räume erstellen
+                // Initiale Räume erstellen (falls nicht existieren)
                 await createInitialRooms();
 
                 // Modus wechseln
@@ -881,14 +883,23 @@
         }
 
         async function createInitialRooms() {
-            for (const room of initialRooms) {
-                await db.collection('rooms').doc(room.id).set({
-                    name: room.name,
-                    topic: room.topic,
-                    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-                    createdBy: currentUser.uid,
-                    userCount: 0
-                }, { merge: true });
+            try {
+                for (const room of initialRooms) {
+                    const roomRef = db.collection('rooms').doc(room.id);
+                    const roomDoc = await roomRef.get();
+                    
+                    if (!roomDoc.exists) {
+                        await roomRef.set({
+                            name: room.name,
+                            topic: room.topic,
+                            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                            createdBy: currentUser.uid,
+                            userCount: 0
+                        });
+                    }
+                }
+            } catch (error) {
+                console.error("Error creating initial rooms:", error);
             }
         }
 
@@ -986,7 +997,16 @@
             document.querySelectorAll('.room-item').forEach(item => {
                 item.classList.remove('active');
             });
-            document.querySelector(`.room-item:contains('${room.name}')`)?.classList.add('active');
+            
+            // Aktiven Raum markieren
+            setTimeout(() => {
+                const roomElements = document.querySelectorAll('.room-item');
+                roomElements.forEach(element => {
+                    if (element.querySelector('.room-name').textContent === room.name) {
+                        element.classList.add('active');
+                    }
+                });
+            }, 100);
             
             // Nachrichten für diesen Raum laden
             loadMessages(room.id);
@@ -1006,31 +1026,39 @@
         async function leaveRoom(room) {
             if (!room || !currentUser) return;
             
-            await db.collection('rooms').doc(room.id).update({
-                userCount: firebase.firestore.FieldValue.increment(-1)
-            });
-            
-            // Typing status zurücksetzen
-            await updateTypingStatus(false);
+            try {
+                await db.collection('rooms').doc(room.id).update({
+                    userCount: firebase.firestore.FieldValue.increment(-1)
+                });
+                
+                // Typing status zurücksetzen
+                await updateTypingStatus(false);
+            } catch (error) {
+                console.error("Error leaving room:", error);
+            }
         }
 
         async function updateUserStatus(status, roomId = null) {
             if (!currentUser) return;
             
-            const updates = {
-                status: status,
-                lastSeen: firebase.firestore.FieldValue.serverTimestamp(),
-                currentRoom: roomId
-            };
-            
-            if (roomId) {
-                // Raum User Count aktualisieren
-                await db.collection('rooms').doc(roomId).update({
-                    userCount: firebase.firestore.FieldValue.increment(1)
-                });
+            try {
+                const updates = {
+                    status: status,
+                    lastSeen: firebase.firestore.FieldValue.serverTimestamp(),
+                    currentRoom: roomId
+                };
+                
+                if (roomId) {
+                    // Raum User Count aktualisieren
+                    await db.collection('rooms').doc(roomId).update({
+                        userCount: firebase.firestore.FieldValue.increment(1)
+                    });
+                }
+                
+                await db.collection('users').doc(currentUser.uid).update(updates);
+            } catch (error) {
+                console.error("Error updating user status:", error);
             }
-            
-            await db.collection('users').doc(currentUser.uid).update(updates);
         }
 
         function loadMessages(roomId) {
@@ -1133,12 +1161,16 @@
         async function updateTypingStatus(isTyping) {
             if (!currentRoom || !currentUser) return;
             
-            await db.collection('rooms').doc(currentRoom.id).collection('typing')
-                .doc(currentUser.uid).set({
-                    username: currentUser.username,
-                    isTyping: isTyping,
-                    timestamp: firebase.firestore.FieldValue.serverTimestamp()
-                }, { merge: true });
+            try {
+                await db.collection('rooms').doc(currentRoom.id).collection('typing')
+                    .doc(currentUser.uid).set({
+                        username: currentUser.username,
+                        isTyping: isTyping,
+                        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                    }, { merge: true });
+            } catch (error) {
+                console.error("Error updating typing status:", error);
+            }
         }
 
         function setupTypingListener(roomId) {
@@ -1190,22 +1222,6 @@
             onlineCount.textContent = onlineUsersList.length + 1; // + aktueller User
         });
 
-        // Raum User Count verfolgen
-        function updateRoomUserCounts() {
-            rooms.forEach(room => {
-                db.collection('users').where('currentRoom', '==', room.id).get().then(snapshot => {
-                    const count = snapshot.size;
-                    roomUserCount.textContent = count;
-                    
-                    // In der Liste aktualisieren
-                    const roomElement = document.querySelector(`.room-item:contains('${room.name}') .room-users`);
-                    if (roomElement) {
-                        roomElement.textContent = `${count} 👤`;
-                    }
-                });
-            });
-        }
-
         // Hilfsfunktionen
         function showNotification(text, duration = 3000) {
             notification.textContent = text;
@@ -1216,8 +1232,10 @@
             }, duration);
         }
 
-        // Initialisiere
-        setInterval(updateRoomUserCounts, 10000);
+        // Autofocus auf Username Input
+        window.addEventListener('load', () => {
+            usernameInput.focus();
+        });
     </script>
 </body>
 </html>
