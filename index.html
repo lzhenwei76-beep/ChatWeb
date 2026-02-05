@@ -1,980 +1,834 @@
-
 <!DOCTYPE html>
 <html lang="de">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NeonChat - Moderner Chatroom</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
-    <script type="module">
-        // Import Firebase modules
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-app.js";
-        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-auth.js";
-        import { getFirestore, collection, addDoc, doc, setDoc, updateDoc, onSnapshot, serverTimestamp, query, orderBy, deleteField } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-firestore.js";
-        import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-analytics.js";
-
-        // Firebase configuration
-        const firebaseConfig = {
-            apiKey: "AIzaSyCaZVf_r56MRIdwrMJdj14ZCTgNmMhMlDk",
-            authDomain: "chatroom-2b0e7.firebaseapp.com",
-            projectId: "chatroom-2b0e7",
-            storageBucket: "chatroom-2b0e7.firebasestorage.app",
-            messagingSenderId: "465248399287",
-            appId: "1:465248399287:web:6739627062490ba719c232",
-            measurementId: "G-QL20XTKGR5"
-        };
-
-        // Initialize Firebase
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-        const analytics = getAnalytics(app);
-
-        // Make Firebase available globally
-        window.firebaseApp = app;
-        window.firebaseAuth = auth;
-        window.firebaseDB = db;
-        window.firebaseSignInAnonymously = signInAnonymously;
-        window.firebaseFunctions = {
-            collection,
-            addDoc,
-            doc,
-            setDoc,
-            updateDoc,
-            onSnapshot,
-            serverTimestamp,
-            query,
-            orderBy,
-            deleteField
-        };
-
-        console.log("✅ Firebase initialized successfully!");
-        
-        // Update status
-        document.addEventListener('DOMContentLoaded', function() {
-            const statusElement = document.getElementById('firebaseStatus');
-            if (statusElement) {
-                statusElement.textContent = '✅ Firebase geladen';
-                statusElement.className = 'status-value success';
-            }
-        });
-    </script>
-
+    <title>KI Spiele-Sammlung</title>
     <style>
+        /* CSS bleibt gleich wie vorher */
+        :root {
+            --primary: #4361ee;
+            --secondary: #3a0ca3;
+            --accent: #f72585;
+            --light: #f8f9fa;
+            --dark: #212529;
+            --success: #4cc9f0;
+            --warning: #f8961e;
+            --danger: #e63946;
+        }
+        
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
-            font-family: 'Segoe UI', system-ui, sans-serif;
         }
-
-        :root {
-            --primary: #6366f1;
-            --primary-dark: #4f46e5;
-            --secondary: #8b5cf6;
-            --accent: #06b6d4;
-            --success: #10b981;
-            --danger: #ef4444;
-            --warning: #f59e0b;
-            --dark: #1e293b;
-            --light: #f8fafc;
-            --gray: #64748b;
-            --glass: rgba(255, 255, 255, 0.1);
-            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
+        
         body {
-            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-            color: var(--light);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            padding: 20px;
+            color: var(--dark);
         }
-
-        .login-container {
-            background: var(--glass);
-            backdrop-filter: blur(20px);
-            border-radius: 25px;
-            padding: 40px;
-            width: 100%;
-            max-width: 450px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-            animation: fadeIn 0.8s ease-out;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(30px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.7; }
-        }
-
-        .logo {
-            text-align: center;
-            margin-bottom: 30px;
-        }
-
-        .logo h1 {
-            font-size: 2.8rem;
-            background: linear-gradient(135deg, var(--primary), var(--accent));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            margin-bottom: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 15px;
-        }
-
-        .logo p {
-            color: var(--gray);
-            font-size: 1.1rem;
-        }
-
-        .input-group {
-            margin-bottom: 25px;
-        }
-
-        .input-group label {
-            display: block;
-            margin-bottom: 10px;
-            color: var(--gray);
-            font-size: 0.95rem;
-            font-weight: 500;
-        }
-
-        .input-group input {
-            width: 100%;
-            padding: 16px 20px;
-            background: rgba(255, 255, 255, 0.07);
-            border: 2px solid rgba(255, 255, 255, 0.1);
-            border-radius: 15px;
-            color: white;
-            font-size: 1rem;
-            transition: var(--transition);
-        }
-
-        .input-group input:focus {
-            outline: none;
-            border-color: var(--primary);
-            background: rgba(255, 255, 255, 0.1);
-            box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
-        }
-
-        .color-preview {
-            width: 40px;
-            height: 40px;
-            border-radius: 10px;
-            display: inline-block;
-            margin-left: 15px;
-            vertical-align: middle;
-            border: 2px solid rgba(255, 255, 255, 0.2);
-        }
-
-        .btn-login {
-            width: 100%;
-            padding: 18px;
-            background: linear-gradient(135deg, var(--primary), var(--secondary));
-            border: none;
-            border-radius: 15px;
-            color: white;
-            font-size: 1.1rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: var(--transition);
-            margin-top: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 12px;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .btn-login:hover:not(:disabled) {
-            transform: translateY(-3px);
-            box-shadow: 0 15px 30px rgba(99, 102, 241, 0.3);
-        }
-
-        .btn-login:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-        }
-
-        .btn-login::after {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-            transition: left 0.5s;
-        }
-
-        .btn-login:hover::after {
-            left: 100%;
-        }
-
-        .loading-spinner {
-            display: inline-block;
-            width: 20px;
-            height: 20px;
-            border: 3px solid rgba(255, 255, 255, 0.3);
-            border-radius: 50%;
-            border-top-color: white;
-            animation: spin 1s linear infinite;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
-        .status-box {
-            margin-top: 30px;
-            padding: 20px;
-            background: rgba(0, 0, 0, 0.25);
-            border-radius: 15px;
-            border-left: 5px solid var(--accent);
-        }
-
-        .status-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin: 12px 0;
-            padding: 8px 0;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-        }
-
-        .status-item:last-child {
-            border-bottom: none;
-        }
-
-        .status-label {
-            color: var(--gray);
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .status-value {
-            font-weight: 600;
-            font-size: 0.95rem;
-        }
-
-        .success { color: var(--success); }
-        .error { color: var(--danger); }
-        .loading { 
-            color: var(--accent); 
-            animation: pulse 2s infinite;
-        }
-
-        .notification {
-            position: fixed;
-            top: 25px;
-            right: 25px;
-            background: linear-gradient(135deg, var(--primary), var(--secondary));
-            color: white;
-            padding: 18px 25px;
-            border-radius: 15px;
-            z-index: 1001;
-            display: none;
-            animation: slideIn 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.25);
-            max-width: 400px;
-            backdrop-filter: blur(10px);
-        }
-
-        @keyframes slideIn {
-            from { transform: translateX(100%); opacity: 0; }
-            to { transform: translateX(0); opacity: 1; }
-        }
-
-        .test-section {
-            margin-top: 25px;
-            padding: 15px;
-            background: rgba(6, 182, 212, 0.1);
-            border-radius: 12px;
-            border: 1px solid var(--accent);
-        }
-
-        .test-section h3 {
-            color: var(--accent);
-            margin-bottom: 10px;
-            font-size: 1rem;
-        }
-
-        .btn-test {
-            padding: 10px 20px;
-            background: rgba(255, 255, 255, 0.1);
-            border: 1px solid var(--accent);
-            border-radius: 10px;
-            color: var(--accent);
-            cursor: pointer;
-            font-size: 0.9rem;
-            transition: var(--transition);
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .btn-test:hover {
-            background: rgba(6, 182, 212, 0.2);
-            transform: translateY(-2px);
-        }
-
-        .tips {
-            margin-top: 20px;
-            padding: 15px;
-            background: rgba(245, 158, 11, 0.1);
-            border-radius: 12px;
-            border-left: 4px solid var(--warning);
-        }
-
-        .tips h4 {
-            color: var(--warning);
-            margin-bottom: 8px;
-            font-size: 0.9rem;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .tips ul {
-            padding-left: 20px;
-            color: rgba(255, 255, 255, 0.7);
-            font-size: 0.85rem;
-        }
-
-        .tips li {
-            margin: 5px 0;
-        }
-
-        .chat-app {
-            display: none;
-            width: 100%;
+        
+        .container {
             max-width: 1200px;
-            animation: fadeIn 0.5s ease-out;
+            margin: 0 auto;
+            padding: 20px;
         }
-
-        /* Chat Styles */
-        .chat-container {
-            display: grid;
-            grid-template-columns: 300px 1fr;
-            gap: 20px;
-            height: 85vh;
-        }
-
-        .sidebar {
-            background: var(--glass);
-            backdrop-filter: blur(10px);
-            border-radius: 20px;
-            padding: 25px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .chat-area {
-            background: var(--glass);
-            backdrop-filter: blur(10px);
-            border-radius: 20px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
+        
+        /* ... Rest des CSS bleibt gleich ... */
+        
+        /* Schach-spezifische Styles */
+        .chess-container {
             display: flex;
             flex-direction: column;
+            align-items: center;
+            gap: 20px;
         }
-
-        .header {
-            background: rgba(255, 255, 255, 0.05);
-            padding: 20px 30px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 20px 20px 0 0;
+        
+        .chess-board {
+            display: grid;
+            grid-template-columns: repeat(8, 60px);
+            grid-template-rows: repeat(8, 60px);
+            border: 3px solid var(--dark);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            background: white;
         }
-
-        .messages-container {
-            flex: 1;
-            padding: 20px;
-            overflow-y: auto;
+        
+        .chess-cell {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.2rem;
+            cursor: pointer;
+            user-select: none;
         }
-
-        .message-input-area {
-            padding: 20px;
-            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        
+        .chess-cell.light { background-color: #f0d9b5; }
+        .chess-cell.dark { background-color: #b58863; }
+        .chess-cell.selected { 
+            background-color: rgba(67, 97, 238, 0.7) !important;
+            box-shadow: inset 0 0 0 3px rgba(67, 97, 238, 0.9);
+        }
+        .chess-cell.possible { 
+            background-color: rgba(247, 37, 133, 0.5) !important;
+            position: relative;
+        }
+        .chess-cell.possible::after {
+            content: '';
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background: rgba(247, 37, 133, 0.8);
+            border-radius: 50%;
+        }
+        
+        .chess-info {
+            display: flex;
+            gap: 30px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        
+        .captured-pieces {
+            background: rgba(255, 255, 255, 0.9);
+            padding: 15px;
+            border-radius: 10px;
+            min-width: 200px;
+        }
+        
+        .captured-pieces h4 {
+            margin-bottom: 10px;
+            color: var(--secondary);
+        }
+        
+        .pieces-row {
+            display: flex;
+            gap: 5px;
+            flex-wrap: wrap;
+            font-size: 1.5rem;
+        }
+        
+        @media (max-width: 768px) {
+            .chess-board { 
+                grid-template-columns: repeat(8, 40px); 
+                grid-template-rows: repeat(8, 40px); 
+            }
+            .chess-cell { font-size: 1.5rem; }
         }
     </style>
 </head>
 <body>
-    <!-- Notification -->
-    <div class="notification" id="notification"></div>
+    <div class="container">
+        <header>
+            <h1>🎮 KI Spiele-Sammlung</h1>
+            <p class="tagline">Teste deine Fähigkeiten gegen intelligente Bots mit anpassbarer Stärke!</p>
+        </header>
 
-    <!-- Login Screen -->
-    <div class="login-container" id="loginScreen">
-        <div class="logo">
-            <h1>
-                <i class="fas fa-comment-dots"></i>
-                NeonChat
-            </h1>
-            <p>Moderner Chatroom mit Echtzeit-Kommunikation</p>
+        <div class="game-selector">
+            <button class="game-btn active" onclick="switchGame('tictactoe')">⭕ Tic-Tac-Toe</button>
+            <button class="game-btn" onclick="switchGame('hangman')">💀 Hangman</button>
+            <button class="game-btn" onclick="switchGame('chess')">♔ Schach</button>
         </div>
 
-        <div class="input-group">
-            <label for="username">
-                <i class="fas fa-user"></i> Benutzername
-            </label>
-            <input type="text" id="username" placeholder="Gib deinen Namen ein" maxlength="20" value="ChatUser">
-        </div>
-
-        <div class="input-group">
-            <label for="avatarColor">
-                <i class="fas fa-palette"></i> Avatar-Farbe
-                <span class="color-preview" id="colorPreview" style="background: #6366f1;"></span>
-            </label>
-            <input type="color" id="avatarColor" value="#6366f1">
-        </div>
-
-        <button class="btn-login" id="btnLogin">
-            <i class="fas fa-sign-in-alt"></i>
-            <span id="btnText">Chat betreten</span>
-            <span id="btnLoading" style="display: none;">
-                <span class="loading-spinner"></span> Verbinde...
-            </span>
-        </button>
-
-        <div class="status-box">
-            <div class="status-item">
-                <span class="status-label">
-                    <i class="fas fa-fire"></i> Firebase
-                </span>
-                <span id="firebaseStatus" class="status-value loading">Wird geladen...</span>
-            </div>
-            <div class="status-item">
-                <span class="status-label">
-                    <i class="fas fa-database"></i> Firestore
-                </span>
-                <span id="firestoreStatus" class="status-value loading">Wird geprüft...</span>
-            </div>
-            <div class="status-item">
-                <span class="status-label">
-                    <i class="fas fa-wifi"></i> Verbindung
-                </span>
-                <span id="connectionStatus" class="status-value loading">Prüfe...</span>
+        <div class="settings-panel">
+            <h2>🤖 Bot-Einstellungen</h2>
+            <div class="bot-controls">
+                <div class="strength-slider">
+                    <div class="slider-container">
+                        <span class="strength-label">Bot-Stärke:</span>
+                        <span class="strength-value" id="strengthValue">Medium</span>
+                        <input type="range" min="1" max="5" value="3" class="slider" id="botStrength">
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-top: 5px;">
+                        <span>⚡ Einfach</span>
+                        <span>🤖 Mittel</span>
+                        <span>🧠 Experte</span>
+                        <span>🤯 Unmöglich</span>
+                        <span>👾 KI-Master</span>
+                    </div>
+                </div>
+                <button class="btn" onclick="resetCurrentGame()">🔄 Spiel neustarten</button>
             </div>
         </div>
 
-        <div class="test-section">
-            <h3><i class="fas fa-vial"></i> Verbindung testen</h3>
-            <button class="btn-test" id="btnTestConnection">
-                <i class="fas fa-sync-alt"></i> Firebase testen
-            </button>
-            <button class="btn-test" id="btnTestFirestore" style="margin-left: 10px;">
-                <i class="fas fa-database"></i> Firestore testen
-            </button>
+        <!-- Tic-Tac-Toe Game -->
+        <div id="tictactoe" class="game-container active">
+            <!-- Tic-Tac-Toe Content bleibt gleich -->
         </div>
 
-        <div class="tips">
-            <h4><i class="fas fa-lightbulb"></i> Wichtige Hinweise</h4>
-            <ul>
-                <li>Stelle sicher, dass Firestore in der Firebase Console aktiviert ist</li>
-                <li>Firestore-Regeln müssen auf "test mode" stehen</li>
-                <li>Bei Fehlern: Browser Console öffnen (F12)</li>
-                <li>Chat funktioniert in Echtzeit zwischen allen Nutzern</li>
-            </ul>
+        <!-- Hangman Game -->
+        <div id="hangman" class="game-container">
+            <!-- Hangman Content bleibt gleich -->
         </div>
-    </div>
 
-    <!-- Chat App (wird nach Login angezeigt) -->
-    <div class="chat-app" id="chatApp">
-        <div class="chat-container">
-            <!-- Sidebar -->
-            <div class="sidebar">
-                <div class="user-info" style="text-align: center; margin-bottom: 30px;">
-                    <div style="width: 80px; height: 80px; border-radius: 50%; background: #6366f1; margin: 0 auto 15px; display: flex; align-items: center; justify-content: center; font-size: 2rem; font-weight: bold;" id="userAvatar">
-                        C
+        <!-- Chess Game -->
+        <div id="chess" class="game-container">
+            <div class="game-header">
+                <h2>♔ Schach gegen KI</h2>
+                <div class="stats">
+                    <div class="stat-box">
+                        <div class="stat-value" id="chessWins">0</div>
+                        <div class="stat-label">Gewonnen</div>
                     </div>
-                    <h3 id="displayUsername">ChatUser</h3>
-                    <div style="color: var(--success); font-size: 0.9rem; margin-top: 5px;">
-                        <i class="fas fa-circle" style="font-size: 0.7rem;"></i> Online
+                    <div class="stat-box">
+                        <div class="stat-value" id="chessLosses">0</div>
+                        <div class="stat-label">Verloren</div>
                     </div>
-                </div>
-
-                <div style="margin-bottom: 25px;">
-                    <h4 style="margin-bottom: 15px; color: var(--gray);">
-                        <i class="fas fa-hashtag"></i> Chaträume
-                    </h4>
-                    <div id="roomsList">
-                        <div style="background: rgba(255,255,255,0.05); padding: 15px; border-radius: 10px; margin-bottom: 10px; cursor: pointer;">
-                            <div style="font-weight: bold;">🌟 Allgemein</div>
-                            <div style="font-size: 0.9rem; color: var(--gray);">Allgemeine Unterhaltungen</div>
-                        </div>
-                    </div>
-                </div>
-
-                <div>
-                    <h4 style="margin-bottom: 15px; color: var(--gray);">
-                        <i class="fas fa-users"></i> Online (1)
-                    </h4>
-                    <div id="onlineUsers">
-                        <div style="display: flex; align-items: center; gap: 10px; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 10px; margin-bottom: 8px;">
-                            <div style="width: 10px; height: 10px; background: var(--success); border-radius: 50%;"></div>
-                            <span>ChatUser (Du)</span>
-                        </div>
+                    <div class="stat-box">
+                        <div class="stat-value" id="chessDraws">0</div>
+                        <div class="stat-label">Unentschieden</div>
                     </div>
                 </div>
             </div>
-
-            <!-- Chat Area -->
-            <div class="chat-area">
-                <div class="header">
-                    <h2 id="currentRoom">🌟 Allgemein</h2>
-                    <div style="color: var(--gray); font-size: 0.9rem; margin-top: 5px;">
-                        <i class="fas fa-users"></i> <span id="roomUserCount">1</span> Benutzer online
+            
+            <div id="chessMessage" class="message"></div>
+            
+            <div class="chess-container">
+                <div class="chess-info">
+                    <div class="captured-pieces">
+                        <h4>♙ Weiß geschlagen:</h4>
+                        <div class="pieces-row" id="whiteCaptured"></div>
+                    </div>
+                    <div class="captured-pieces">
+                        <h4>♟ Schwarz geschlagen:</h4>
+                        <div class="pieces-row" id="blackCaptured"></div>
                     </div>
                 </div>
-
-                <div class="messages-container" id="messagesContainer">
-                    <div style="text-align: center; color: var(--gray); padding: 20px;">
-                        <i class="fas fa-comments" style="font-size: 3rem; margin-bottom: 20px; opacity: 0.5;"></i>
-                        <h3>Willkommen im Chat!</h3>
-                        <p style="margin-top: 10px;">Deine Nachrichten erscheinen hier...</p>
-                    </div>
+                
+                <div class="chess-board" id="chessBoard"></div>
+                <div style="margin-top: 20px; font-weight: bold; color: var(--secondary);" id="chessTurn">
+                    Weiß am Zug
                 </div>
-
-                <div class="message-input-area">
-                    <div style="display: flex; gap: 10px;">
-                        <input type="text" 
-                               id="messageInput" 
-                               placeholder="Schreibe eine Nachricht..." 
-                               style="flex: 1; padding: 15px; background: rgba(255,255,255,0.07); border: none; border-radius: 12px; color: white;">
-                        <button id="sendButton" 
-                                style="padding: 15px 25px; background: linear-gradient(135deg, var(--primary), var(--secondary)); border: none; border-radius: 12px; color: white; cursor: pointer;">
-                            <i class="fas fa-paper-plane"></i> Senden
-                        </button>
-                    </div>
-                </div>
+            </div>
+            
+            <div class="controls">
+                <button class="btn" onclick="startChessGame()">Neues Spiel</button>
+                <button class="btn btn-danger" onclick="resetChessStats()">Statistiken zurücksetzen</button>
             </div>
         </div>
     </div>
 
     <script>
-        // DOM Elements
-        const loginScreen = document.getElementById('loginScreen');
-        const chatApp = document.getElementById('chatApp');
-        const usernameInput = document.getElementById('username');
-        const avatarColorInput = document.getElementById('avatarColor');
-        const colorPreview = document.getElementById('colorPreview');
-        const btnLogin = document.getElementById('btnLogin');
-        const btnText = document.getElementById('btnText');
-        const btnLoading = document.getElementById('btnLoading');
-        const btnTestConnection = document.getElementById('btnTestConnection');
-        const btnTestFirestore = document.getElementById('btnTestFirestore');
-        const notification = document.getElementById('notification');
-        const firestoreStatus = document.getElementById('firestoreStatus');
-        const connectionStatus = document.getElementById('connectionStatus');
-        const displayUsername = document.getElementById('displayUsername');
-        const userAvatar = document.getElementById('userAvatar');
-        const messageInput = document.getElementById('messageInput');
-        const sendButton = document.getElementById('sendButton');
-        const messagesContainer = document.getElementById('messagesContainer');
-        const onlineUsers = document.getElementById('onlineUsers');
-        const roomsList = document.getElementById('roomsList');
-        const currentRoom = document.getElementById('currentRoom');
-        const roomUserCount = document.getElementById('roomUserCount');
+        // ============ GLOBALE VARIABLEN ============
+        let currentGame = 'tictactoe';
+        let botStrength = 3;
 
-        // App State
-        let currentUser = null;
-        let currentRoomId = 'general';
-        let rooms = [];
+        // Bot-Stärke Slider
+        const strengthSlider = document.getElementById('botStrength');
+        const strengthValue = document.getElementById('strengthValue');
 
-        // Update color preview
-        avatarColorInput.addEventListener('input', function() {
-            colorPreview.style.background = this.value;
+        strengthSlider.addEventListener('input', function() {
+            botStrength = parseInt(this.value);
+            const strengths = ['Einfach', 'Mittel', 'Experte', 'Unmöglich', 'KI-Master'];
+            strengthValue.textContent = strengths[botStrength - 1];
+            updateBotStrength();
         });
 
-        // Show notification
-        function showNotification(message, type = 'info') {
-            notification.textContent = message;
-            notification.style.display = 'block';
+        function updateBotStrength() {
+            console.log(`Bot-Stärke auf Level ${botStrength} gesetzt`);
+        }
+
+        function switchGame(game) {
+            document.querySelectorAll('.game-container').forEach(container => {
+                container.classList.remove('active');
+            });
+            document.querySelectorAll('.game-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
             
-            setTimeout(() => {
-                notification.style.display = 'none';
-            }, 4000);
-        }
-
-        // Test Firebase Connection
-        btnTestConnection.addEventListener('click', async function() {
-            try {
-                if (!window.firebaseAuth) {
-                    showNotification('Firebase ist nicht geladen', 'error');
-                    return;
-                }
-                
-                showNotification('Teste Firebase-Verbindung...', 'info');
-                const auth = window.firebaseAuth;
-                
-                // Try anonymous auth
-                await window.firebaseSignInAnonymously(auth);
-                showNotification('✅ Firebase-Verbindung erfolgreich!', 'success');
-                connectionStatus.textContent = '✅ Verbunden';
-                connectionStatus.className = 'status-value success';
-                
-            } catch (error) {
-                console.error('Firebase Test Error:', error);
-                showNotification('❌ Firebase-Fehler: ' + error.message, 'error');
-                connectionStatus.textContent = '❌ Fehler';
-                connectionStatus.className = 'status-value error';
-            }
-        });
-
-        // Test Firestore Connection
-        btnTestFirestore.addEventListener('click', async function() {
-            try {
-                if (!window.firebaseDB || !window.firebaseFunctions) {
-                    showNotification('Firestore ist nicht geladen', 'error');
-                    return;
-                }
-                
-                showNotification('Teste Firestore-Verbindung...', 'info');
-                const db = window.firebaseDB;
-                const { collection, addDoc, deleteDoc, doc } = window.firebaseFunctions;
-                
-                // Create test document
-                const testRef = await addDoc(collection(db, 'test'), {
-                    test: true,
-                    timestamp: new Date().toISOString(),
-                    message: 'Firestore Test erfolgreich'
-                });
-                
-                // Delete test document
-                await deleteDoc(doc(db, 'test', testRef.id));
-                
-                showNotification('✅ Firestore-Verbindung erfolgreich!', 'success');
-                firestoreStatus.textContent = '✅ Verbunden';
-                firestoreStatus.className = 'status-value success';
-                
-            } catch (error) {
-                console.error('Firestore Test Error:', error);
-                showNotification('❌ Firestore-Fehler: ' + error.message, 'error');
-                firestoreStatus.textContent = '❌ Fehler';
-                firestoreStatus.className = 'status-value error';
-            }
-        });
-
-        // Login Function
-        async function loginUser() {
-            const username = usernameInput.value.trim();
-            const avatarColor = avatarColorInput.value;
+            document.getElementById(game).classList.add('active');
+            event.target.classList.add('active');
+            currentGame = game;
             
-            if (!username || username.length < 2) {
-                showNotification('Bitte gib einen gültigen Namen ein (mind. 2 Zeichen)', 'error');
-                return;
-            }
+            resetCurrentGame();
+        }
 
-            // Show loading state
-            btnLogin.disabled = true;
-            btnText.style.display = 'none';
-            btnLoading.style.display = 'inline';
-
-            try {
-                // 1. Sign in anonymously
-                const auth = window.firebaseAuth;
-                const userCredential = await window.firebaseSignInAnonymously(auth);
-                
-                currentUser = {
-                    uid: userCredential.user.uid,
-                    username: username,
-                    avatarColor: avatarColor,
-                    status: 'online',
-                    lastSeen: new Date()
-                };
-
-                // 2. Update UI
-                displayUsername.textContent = username;
-                userAvatar.textContent = username.charAt(0).toUpperCase();
-                userAvatar.style.background = avatarColor;
-                
-                // 3. Create user in Firestore
-                const db = window.firebaseDB;
-                const { doc, setDoc, serverTimestamp } = window.firebaseFunctions;
-                
-                await setDoc(doc(db, 'users', currentUser.uid), {
-                    ...currentUser,
-                    lastSeen: serverTimestamp()
-                });
-
-                // 4. Create initial room if not exists
-                await setDoc(doc(db, 'rooms', 'general'), {
-                    name: '🌟 Allgemein',
-                    topic: 'Allgemeine Unterhaltungen',
-                    createdAt: serverTimestamp(),
-                    createdBy: currentUser.uid,
-                    userCount: 1
-                }, { merge: true });
-
-                // 5. Switch to chat interface
-                loginScreen.style.display = 'none';
-                chatApp.style.display = 'block';
-                
-                showNotification(`Willkommen, ${username}! 🎉`, 'success');
-                
-                // 6. Load rooms and messages
-                loadRooms();
-                loadMessages('general');
-                setupOnlineUsers();
-                
-            } catch (error) {
-                console.error('Login Error:', error);
-                showNotification('Login fehlgeschlagen: ' + error.message, 'error');
-                
-                // Reset button state
-                btnLogin.disabled = false;
-                btnText.style.display = 'inline';
-                btnLoading.style.display = 'none';
+        function resetCurrentGame() {
+            switch(currentGame) {
+                case 'tictactoe': startTTTGame(); break;
+                case 'hangman': startHangmanGame(); break;
+                case 'chess': startChessGame(); break;
             }
         }
 
-        // Load Rooms
-        async function loadRooms() {
-            try {
-                const db = window.firebaseDB;
-                const { collection, onSnapshot } = window.firebaseFunctions;
-                
-                onSnapshot(collection(db, 'rooms'), (snapshot) => {
-                    roomsList.innerHTML = '';
-                    rooms = [];
+        // ============ SCHACH SPIEL ============
+        let chessBoard = [];
+        let chessSelectedPiece = null;
+        let chessCurrentPlayer = 'white';
+        let chessPossibleMoves = [];
+        let chessStats = { wins: 0, losses: 0, draws: 0 };
+        let capturedWhitePieces = [];
+        let capturedBlackPieces = [];
+        let isGameActive = true;
+
+        // Schachfiguren mit Wertigkeiten
+        const pieceValues = {
+            '♟': 1, '♙': 1, // Bauern
+            '♞': 3, '♘': 3, // Springer
+            '♝': 3, '♗': 3, // Läufer
+            '♜': 5, '♖': 5, // Türme
+            '♛': 9, '♕': 9, // Damen
+            '♚': 100, '♔': 100 // Könige
+        };
+
+        const initialChessBoard = [
+            ['♜','♞','♝','♛','♚','♝','♞','♜'],
+            ['♟','♟','♟','♟','♟','♟','♟','♟'],
+            ['','','','','','','',''],
+            ['','','','','','','',''],
+            ['','','','','','','',''],
+            ['','','','','','','',''],
+            ['♙','♙','♙','♙','♙','♙','♙','♙'],
+            ['♖','♘','♗','♕','♔','♗','♘','♖']
+        ];
+
+        function initializeChess() {
+            updateChessStats();
+            startChessGame();
+        }
+
+        function startChessGame() {
+            chessBoard = JSON.parse(JSON.stringify(initialChessBoard));
+            chessSelectedPiece = null;
+            chessCurrentPlayer = 'white';
+            chessPossibleMoves = [];
+            capturedWhitePieces = [];
+            capturedBlackPieces = [];
+            isGameActive = true;
+            
+            document.getElementById('chessMessage').className = 'message';
+            document.getElementById('chessTurn').textContent = 'Weiß am Zug';
+            document.getElementById('chessTurn').style.color = 'var(--secondary)';
+            
+            updateCapturedPieces();
+            createChessBoard();
+        }
+
+        function createChessBoard() {
+            const board = document.getElementById('chessBoard');
+            board.innerHTML = '';
+            
+            for(let row = 0; row < 8; row++) {
+                for(let col = 0; col < 8; col++) {
+                    const cell = document.createElement('div');
+                    cell.className = `chess-cell ${(row + col) % 2 === 0 ? 'light' : 'dark'}`;
+                    cell.dataset.row = row;
+                    cell.dataset.col = col;
+                    cell.textContent = chessBoard[row][col];
                     
-                    snapshot.forEach((doc) => {
-                        const room = { id: doc.id, ...doc.data() };
-                        rooms.push(room);
-                        
-                        const roomElement = document.createElement('div');
-                        roomElement.style.cssText = `
-                            background: ${room.id === currentRoomId ? 'rgba(99, 102, 241, 0.2)' : 'rgba(255,255,255,0.05)'};
-                            padding: 15px;
-                            border-radius: 10px;
-                            margin-bottom: 10px;
-                            cursor: pointer;
-                            border: ${room.id === currentRoomId ? '1px solid var(--primary)' : '1px solid transparent'};
-                            transition: var(--transition);
-                        `;
-                        roomElement.innerHTML = `
-                            <div style="font-weight: bold; margin-bottom: 5px;">${room.name}</div>
-                            <div style="font-size: 0.9rem; color: var(--gray);">${room.topic || 'Keine Beschreibung'}</div>
-                            <div style="font-size: 0.8rem; color: var(--accent); margin-top: 8px;">
-                                <i class="fas fa-users"></i> ${room.userCount || 0} Benutzer
-                            </div>
-                        `;
-                        
-                        roomElement.addEventListener('click', () => joinRoom(room.id));
-                        roomsList.appendChild(roomElement);
-                    });
-                });
-                
-            } catch (error) {
-                console.error('Load Rooms Error:', error);
-            }
-        }
-
-        // Join Room
-        async function joinRoom(roomId) {
-            try {
-                currentRoomId = roomId;
-                const room = rooms.find(r => r.id === roomId);
-                if (room) {
-                    currentRoom.textContent = room.name;
-                    roomUserCount.textContent = room.userCount || 1;
+                    // Farbe basierend auf Spieler
+                    if(chessBoard[row][col]) {
+                        cell.style.color = chessBoard[row][col] === chessBoard[row][col].toLowerCase() 
+                            ? 'black' : 'var(--secondary)';
+                    }
+                    
+                    cell.addEventListener('click', () => handleChessClick(row, col));
+                    board.appendChild(cell);
                 }
-                
-                loadMessages(roomId);
-                loadRooms(); // Update room highlighting
-                
-            } catch (error) {
-                console.error('Join Room Error:', error);
             }
         }
 
-        // Load Messages
-        async function loadMessages(roomId) {
-            try {
-                const db = window.firebaseDB;
-                const { collection, query, orderBy, onSnapshot } = window.firebaseFunctions;
+        function handleChessClick(row, col) {
+            if(!isGameActive) return;
+            
+            const piece = chessBoard[row][col];
+            
+            if(chessSelectedPiece) {
+                const moveIsValid = chessPossibleMoves.some(move => 
+                    move.row === row && move.col === col);
                 
-                const messagesQuery = query(
-                    collection(db, 'rooms', roomId, 'messages'),
-                    orderBy('timestamp', 'asc')
-                );
-                
-                onSnapshot(messagesQuery, (snapshot) => {
-                    messagesContainer.innerHTML = '';
+                if(moveIsValid) {
+                    // Zug ausführen
+                    const movedPiece = chessBoard[chessSelectedPiece.row][chessSelectedPiece.col];
+                    const targetPiece = chessBoard[row][col];
                     
-                    if (snapshot.empty) {
-                        messagesContainer.innerHTML = `
-                            <div style="text-align: center; color: var(--gray); padding: 40px;">
-                                <i class="fas fa-comment-slash" style="font-size: 3rem; margin-bottom: 20px; opacity: 0.5;"></i>
-                                <h3>Noch keine Nachrichten</h3>
-                                <p style="margin-top: 10px;">Sei der Erste, der etwas schreibt!</p>
-                            </div>
-                        `;
+                    // Geschlagene Figur aufnehmen
+                    if(targetPiece) {
+                        if(isWhitePiece(targetPiece)) {
+                            capturedBlackPieces.push(targetPiece);
+                        } else {
+                            capturedWhitePieces.push(targetPiece);
+                        }
+                    }
+                    
+                    chessBoard[row][col] = movedPiece;
+                    chessBoard[chessSelectedPiece.row][chessSelectedPiece.col] = '';
+                    
+                    clearChessSelection();
+                    createChessBoard();
+                    updateCapturedPieces();
+                    
+                    // Prüfe auf Schachmatt
+                    if(checkCheckmate()) {
+                        const winner = chessCurrentPlayer === 'white' ? 'Weiß' : 'Schwarz';
+                        showMessage('chessMessage', `🎉 ${winner} gewinnt durch Schachmatt!`, 'success');
+                        isGameActive = false;
+                        
+                        if(chessCurrentPlayer === 'white') {
+                            chessStats.wins++;
+                        } else {
+                            chessStats.losses++;
+                        }
+                        updateChessStats();
                         return;
                     }
                     
-                    snapshot.forEach((doc) => {
-                        const message = doc.data();
-                        addMessageToUI(message);
-                    });
+                    // Spieler wechseln
+                    chessCurrentPlayer = chessCurrentPlayer === 'white' ? 'black' : 'white';
+                    document.getElementById('chessTurn').textContent = 
+                        `${chessCurrentPlayer === 'white' ? 'Weiß' : 'Schwarz'} am Zug`;
+                    document.getElementById('chessTurn').style.color = 
+                        chessCurrentPlayer === 'white' ? 'var(--secondary)' : 'black';
                     
-                    // Scroll to bottom
-                    messagesContainer.scrollTop = messagesContainer.scrollHeight;
-                });
-                
-            } catch (error) {
-                console.error('Load Messages Error:', error);
-                messagesContainer.innerHTML = `
-                    <div style="color: var(--danger); padding: 20px; text-align: center;">
-                        <i class="fas fa-exclamation-triangle"></i>
-                        Fehler beim Laden der Nachrichten
-                    </div>
-                `;
+                    // Bot-Zug nach kurzer Verzögerung
+                    if(chessCurrentPlayer === 'black' && isGameActive) {
+                        document.getElementById('chessTurn').textContent = 'KI denkt nach...';
+                        setTimeout(makeBotChessMove, 800);
+                    }
+                } else {
+                    clearChessSelection();
+                    selectChessPiece(row, col, piece);
+                }
+            } else {
+                // Nur eigene Figuren können ausgewählt werden
+                if(piece !== '') {
+                    const isWhite = isWhitePiece(piece);
+                    if((chessCurrentPlayer === 'white' && isWhite) || 
+                       (chessCurrentPlayer === 'black' && !isWhite)) {
+                        selectChessPiece(row, col, piece);
+                    }
+                }
             }
         }
 
-        // Add Message to UI
-        function addMessageToUI(message) {
-            const messageDiv = document.createElement('div');
-            const isOwn = message.senderId === currentUser?.uid;
-            const time = message.timestamp?.toDate ? 
-                message.timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 
-                'Jetzt';
+        function selectChessPiece(row, col, piece) {
+            chessSelectedPiece = { row, col };
+            chessPossibleMoves = calculateChessMoves(row, col, piece);
             
-            messageDiv.style.cssText = `
-                margin-bottom: 15px;
-                max-width: 70%;
-                ${isOwn ? 'margin-left: auto;' : 'margin-right: auto;'}
-            `;
-            
-            messageDiv.innerHTML = `
-                <div style="
-                    background: ${isOwn ? 'linear-gradient(135deg, var(--primary), var(--secondary))' : 'rgba(255,255,255,0.1)'};
-                    padding: 15px;
-                    border-radius: 18px;
-                    border-bottom-${isOwn ? 'right' : 'left'}-radius: 5px;
-                    backdrop-filter: blur(10px);
-                ">
-                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 0.9rem;">
-                        <span style="font-weight: bold;">${message.senderName || 'Unbekannt'}</span>
-                        <span style="opacity: 0.7;">${time}</span>
-                    </div>
-                    <div>${message.text}</div>
-                </div>
-            `;
-            
-            messagesContainer.appendChild(messageDiv);
+            const cells = document.querySelectorAll('.chess-cell');
+            cells.forEach(cell => {
+                const cellRow = parseInt(cell.dataset.row);
+                const cellCol = parseInt(cell.dataset.col);
+                
+                if(cellRow === row && cellCol === col) {
+                    cell.classList.add('selected');
+                }
+                
+                if(chessPossibleMoves.some(move => move.row === cellRow && move.col === cellCol)) {
+                    cell.classList.add('possible');
+                }
+            });
         }
 
-        // Setup Online Users
-        async function setupOnlineUsers() {
-            try {
-                const db = window.firebaseDB;
-                const { collection, onSnapshot, query, where } = window.firebaseFunctions;
-                
-                const usersQuery = query(
-                    collection(db, 'users'),
-                    where('status', '==', 'online')
-                );
-                
-                onSnapshot(usersQuery, (snapshot) => {
-                    onlineUsers.innerHTML = '';
-                    let userCount = 0;
+        function calculateChessMoves(row, col, piece) {
+            const moves = [];
+            const pieceLower = piece.toLowerCase();
+            const isWhite = isWhitePiece(piece);
+            
+            switch(pieceLower) {
+                case '♟': // Bauer
+                    const direction = isWhite ? -1 : 1;
+                    const startRow = isWhite ? 6 : 1;
                     
-                    snapshot.forEach((doc) => {
-                        const user = doc.data();
-                        userCount++;
+                    // Ein Feld vorwärts
+                    if(isValidSquare(row + direction, col) && chessBoard[row + direction][col] === '') {
+                        moves.push({row: row + direction, col});
                         
-                        if (user.uid !== currentUser?.uid) {
-                            const userElement = document.createElement('div');
-                            userElement.style.cssText = `
-                                display: flex;
-                                align-items: center;
-                                gap: 10px;
-                                padding: 10px;
-                                background: rgba(255,255,255,0.05);
-                                border-radius: 10px;
-                                margin-bottom: 8px;
-                            `;
-                            userElement.innerHTML = `
-                                <div style="width: 10px; height: 10px; background: var(--success); border-radius: 50%;"></div>
-                                <span>${user.username}</span>
-                            `;
-                            onlineUsers.appendChild(userElement);
+                        // Zwei Felder vom Start
+                        if(row === startRow && chessBoard[row + 2 * direction][col] === '') {
+                            moves.push({row: row + 2 * direction, col});
+                        }
+                    }
+                    
+                    // Schlagzüge
+                    if(isValidSquare(row + direction, col - 1) && 
+                       chessBoard[row + direction][col - 1] !== '' &&
+                       isOpponentPiece(chessBoard[row + direction][col - 1], piece)) {
+                        moves.push({row: row + direction, col: col - 1});
+                    }
+                    
+                    if(isValidSquare(row + direction, col + 1) && 
+                       chessBoard[row + direction][col + 1] !== '' &&
+                       isOpponentPiece(chessBoard[row + direction][col + 1], piece)) {
+                        moves.push({row: row + direction, col: col + 1});
+                    }
+                    break;
+                    
+                case '♞': // Springer
+                    const knightMoves = [
+                        [-2, -1], [-2, 1], [-1, -2], [-1, 2],
+                        [1, -2], [1, 2], [2, -1], [2, 1]
+                    ];
+                    
+                    knightMoves.forEach(([dx, dy]) => {
+                        const newRow = row + dx;
+                        const newCol = col + dy;
+                        
+                        if(isValidSquare(newRow, newCol)) {
+                            if(chessBoard[newRow][newCol] === '' || 
+                               isOpponentPiece(chessBoard[newRow][newCol], piece)) {
+                                moves.push({row: newRow, col: newCol});
+                            }
                         }
                     });
+                    break;
                     
-                    // Update count
-                    document.querySelector('.sidebar h4').innerHTML = `
-                        <i class="fas fa-users"></i> Online (${userCount})
-                    `;
-                });
-                
-            } catch (error) {
-                console.error('Setup Online Users Error:', error);
+                case '♚': // König (vereinfacht)
+                    const kingMoves = [
+                        [-1, -1], [-1, 0], [-1, 1],
+                        [0, -1],           [0, 1],
+                        [1, -1],  [1, 0],  [1, 1]
+                    ];
+                    
+                    kingMoves.forEach(([dx, dy]) => {
+                        const newRow = row + dx;
+                        const newCol = col + dy;
+                        
+                        if(isValidSquare(newRow, newCol)) {
+                            if(chessBoard[newRow][newCol] === '' || 
+                               isOpponentPiece(chessBoard[newRow][newCol], piece)) {
+                                moves.push({row: newRow, col: newCol});
+                            }
+                        }
+                    });
+                    break;
+                    
+                default: // Für andere Figuren: einfache Bewegungen
+                    const directions = pieceLower === '♝' ? [[-1,-1],[-1,1],[1,-1],[1,1]] : // Läufer
+                                      pieceLower === '♜' ? [[-1,0],[1,0],[0,-1],[0,1]] : // Turm
+                                      pieceLower === '♛' ? [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]] : // Dame
+                                      [];
+                    
+                    directions.forEach(([dx, dy]) => {
+                        let r = row + dx;
+                        let c = col + dy;
+                        
+                        while(isValidSquare(r, c)) {
+                            if(chessBoard[r][c] === '') {
+                                moves.push({row: r, col: c});
+                            } else if(isOpponentPiece(chessBoard[r][c], piece)) {
+                                moves.push({row: r, col: c});
+                                break;
+                            } else {
+                                break;
+                            }
+                            r += dx;
+                            c += dy;
+                        }
+                    });
             }
-        }
-
-        // Send Message
-        async function sendMessage() {
-            const text = messageInput.value.trim();
-            if (!text || !currentRoomId || !currentUser) return;
             
-            try {
-                const db = window.firebaseDB;
-                const { collection, addDoc, serverTimestamp } = window.firebaseFunctions;
-                
-                const message = {
-                    text: text,
-                    senderId: currentUser.uid,
-                    senderName: currentUser.username,
-                    timestamp: serverTimestamp(),
-                    roomId: currentRoomId
-                };
-                
-                await addDoc(collection(db, 'rooms', currentRoomId, 'messages'), message);
-                messageInput.value = '';
-                messageInput.focus();
-                
-            } catch (error) {
-                console.error('Send Message Error:', error);
-                showNotification('Fehler beim Senden der Nachricht', 'error');
-            }
+            return moves;
         }
 
-        // Event Listeners
-        btnLogin.addEventListener('click', loginUser);
-        
-        usernameInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') loginUser();
-        });
-        
-        messageInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                sendMessage();
+        function makeBotChessMove() {
+            if(!isGameActive) return;
+            
+            let bestMove = null;
+            let bestScore = -Infinity;
+            
+            // Sammle alle möglichen Züge
+            const allMoves = [];
+            
+            for(let row = 0; row < 8; row++) {
+                for(let col = 0; col < 8; col++) {
+                    const piece = chessBoard[row][col];
+                    if(piece && !isWhitePiece(piece)) { // Schwarze Figur
+                        const moves = calculateChessMoves(row, col, piece);
+                        moves.forEach(move => {
+                            allMoves.push({
+                                from: {row, col},
+                                to: move,
+                                piece: piece
+                            });
+                        });
+                    }
+                }
             }
-        });
-        
-        sendButton.addEventListener('click', sendMessage);
+            
+            if(allMoves.length === 0) {
+                // Keine Züge möglich - Patt oder Schachmatt
+                showMessage('chessMessage', '🤝 Patt!', 'success');
+                chessStats.draws++;
+                updateChessStats();
+                isGameActive = false;
+                return;
+            }
+            
+            // Wähle Zug basierend auf Bot-Stärke
+            switch(botStrength) {
+                case 1: // Einfach - Zufällig
+                    bestMove = allMoves[Math.floor(Math.random() * allMoves.length)];
+                    break;
+                    
+                case 2: // Mittel - Schlagen wenn möglich
+                    const captureMoves = allMoves.filter(move => 
+                        chessBoard[move.to.row][move.to.col] !== '');
+                    
+                    if(captureMoves.length > 0) {
+                        // Wähle wertvollste Figur zu schlagen
+                        captureMoves.sort((a, b) => {
+                            const pieceA = chessBoard[a.to.row][a.to.col];
+                            const pieceB = chessBoard[b.to.row][b.to.col];
+                            return (pieceValues[pieceA] || 0) - (pieceValues[pieceB] || 0);
+                        });
+                        bestMove = captureMoves[captureMoves.length - 1];
+                    } else {
+                        bestMove = allMoves[Math.floor(Math.random() * allMoves.length)];
+                    }
+                    break;
+                    
+                case 3: // Experte - Minimax mit Tiefe 1
+                    for(let move of allMoves) {
+                        // Simuliere Zug
+                        const originalPiece = chessBoard[move.to.row][move.to.col];
+                        chessBoard[move.to.row][move.to.row] = move.piece;
+                        chessBoard[move.from.row][move.from.col] = '';
+                        
+                        // Bewerte Position
+                        const score = evaluateBoard();
+                        
+                        // Rückgängig machen
+                        chessBoard[move.from.row][move.from.col] = move.piece;
+                        chessBoard[move.to.row][move.to.row] = originalPiece;
+                        
+                        if(score > bestScore) {
+                            bestScore = score;
+                            bestMove = move;
+                        }
+                    }
+                    break;
+                    
+                case 4: // Unmöglich - Greedy mit Wertigkeiten
+                    for(let move of allMoves) {
+                        let score = 0;
+                        
+                        // Materialwert
+                        const capturedPiece = chessBoard[move.to.row][move.to.col];
+                        if(capturedPiece) {
+                            score += (pieceValues[capturedPiece] || 0) * 2;
+                        }
+                        
+                        // Positionsbonus
+                        score += getPositionBonus(move.to.row, move.to.col, move.piece);
+                        
+                        if(score > bestScore) {
+                            bestScore = score;
+                            bestMove = move;
+                        }
+                    }
+                    break;
+                    
+                case 5: // KI-Master - Kombination von Strategien
+                    // 1. Suche nach Schachmatt-Zügen
+                    for(let move of allMoves) {
+                        const capturedPiece = chessBoard[move.to.row][move.to.col];
+                        if(capturedPiece && capturedPiece.toLowerCase() === '♚') {
+                            bestMove = move;
+                            break;
+                        }
+                    }
+                    
+                    if(!bestMove) {
+                        // 2. Suche nach wertvollen Schlagen
+                        const valuableCaptures = allMoves.filter(move => {
+                            const capturedPiece = chessBoard[move.to.row][move.to.col];
+                            return capturedPiece && (pieceValues[capturedPiece] || 0) >= 3;
+                        });
+                        
+                        if(valuableCaptures.length > 0) {
+                            bestMove = valuableCaptures[Math.floor(Math.random() * valuableCaptures.length)];
+                        } else {
+                            // 3. Bewerte alle Züge
+                            for(let move of allMoves) {
+                                let score = evaluateMove(move);
+                                if(score > bestScore) {
+                                    bestScore = score;
+                                    bestMove = move;
+                                }
+                            }
+                        }
+                    }
+                    break;
+            }
+            
+            // Falls kein Zug gefunden wurde, nimm einen zufälligen
+            if(!bestMove) {
+                bestMove = allMoves[Math.floor(Math.random() * allMoves.length)];
+            }
+            
+            // Führe den besten Zug aus
+            executeBotMove(bestMove);
+        }
 
-        // Initialize
+        function executeBotMove(move) {
+            const from = move.from;
+            const to = move.to;
+            const movedPiece = chessBoard[from.row][from.col];
+            const targetPiece = chessBoard[to.row][to.col];
+            
+            // Geschlagene Figur aufnehmen
+            if(targetPiece) {
+                if(isWhitePiece(targetPiece)) {
+                    capturedBlackPieces.push(targetPiece);
+                } else {
+                    capturedWhitePieces.push(targetPiece);
+                }
+            }
+            
+            // Zug ausführen
+            chessBoard[to.row][to.col] = movedPiece;
+            chessBoard[from.row][from.col] = '';
+            
+            createChessBoard();
+            updateCapturedPieces();
+            
+            // Prüfe auf Gewinn
+            if(targetPiece && targetPiece.toLowerCase() === '♚') {
+                showMessage('chessMessage', '🤖 Bot gewinnt durch Schachmatt!', 'error');
+                chessStats.losses++;
+                updateChessStats();
+                isGameActive = false;
+                return;
+            }
+            
+            // Spieler wechseln
+            chessCurrentPlayer = 'white';
+            document.getElementById('chessTurn').textContent = 'Weiß am Zug';
+            document.getElementById('chessTurn').style.color = 'var(--secondary)';
+        }
+
+        function evaluateMove(move) {
+            let score = 0;
+            
+            // Materialwert der geschlagenen Figur
+            const capturedPiece = chessBoard[move.to.row][move.to.col];
+            if(capturedPiece) {
+                score += (pieceValues[capturedPiece] || 0) * 10;
+            }
+            
+            // Positionelle Vorteile
+            score += getPositionBonus(move.to.row, move.to.col, move.piece);
+            
+            // Entwicklung (Springer und Läufer rausbringen)
+            if((move.piece.toLowerCase() === '♞' || move.piece.toLowerCase() === '♝') && 
+               move.from.row === 0) {
+                score += 3;
+            }
+            
+            // Bauern vorrücken
+            if(move.piece.toLowerCase() === '♟' && move.to.row > 3) {
+                score += move.to.row * 0.5;
+            }
+            
+            return score;
+        }
+
+        function getPositionBonus(row, col, piece) {
+            const pieceLower = piece.toLowerCase();
+            
+            // Zentrumskontrolle
+            const centerControl = [[3,3],[3,4],[4,3],[4,4]];
+            for(let [r, c] of centerControl) {
+                if(Math.abs(row - r) <= 1 && Math.abs(col - c) <= 1) {
+                    return 2;
+                }
+            }
+            
+            return 0;
+        }
+
+        function evaluateBoard() {
+            let score = 0;
+            
+            for(let row = 0; row < 8; row++) {
+                for(let col = 0; col < 8; col++) {
+                    const piece = chessBoard[row][col];
+                    if(piece) {
+                        const value = pieceValues[piece] || 0;
+                        if(isWhitePiece(piece)) {
+                            score -= value;
+                        } else {
+                            score += value;
+                        }
+                    }
+                }
+            }
+            
+            return score;
+        }
+
+        function isWhitePiece(piece) {
+            return piece === piece.toUpperCase();
+        }
+
+        function isOpponentPiece(piece1, piece2) {
+            return (isWhitePiece(piece1) && !isWhitePiece(piece2)) ||
+                   (!isWhitePiece(piece1) && isWhitePiece(piece2));
+        }
+
+        function isValidSquare(row, col) {
+            return row >= 0 && row < 8 && col >= 0 && col < 8;
+        }
+
+        function checkCheckmate() {
+            // Vereinfachte Schachmatt-Prüfung
+            // Wenn der König geschlagen wurde
+            let whiteKingFound = false;
+            let blackKingFound = false;
+            
+            for(let row = 0; row < 8; row++) {
+                for(let col = 0; col < 8; col++) {
+                    const piece = chessBoard[row][col];
+                    if(piece === '♔') whiteKingFound = true;
+                    if(piece === '♚') blackKingFound = true;
+                }
+            }
+            
+            return !whiteKingFound || !blackKingFound;
+        }
+
+        function clearChessSelection() {
+            chessSelectedPiece = null;
+            chessPossibleMoves = [];
+            
+            const cells = document.querySelectorAll('.chess-cell');
+            cells.forEach(cell => {
+                cell.classList.remove('selected', 'possible');
+            });
+        }
+
+        function updateCapturedPieces() {
+            document.getElementById('whiteCaptured').innerHTML = 
+                capturedWhitePieces.map(p => `<span style="color: var(--secondary);">${p}</span>`).join('');
+            document.getElementById('blackCaptured').innerHTML = 
+                capturedBlackPieces.map(p => `<span style="color: black;">${p}</span>`).join('');
+        }
+
+        function updateChessStats() {
+            document.getElementById('chessWins').textContent = chessStats.wins;
+            document.getElementById('chessLosses').textContent = chessStats.losses;
+            document.getElementById('chessDraws').textContent = chessStats.draws;
+        }
+
+        function resetChessStats() {
+            chessStats = { wins: 0, losses: 0, draws: 0 };
+            updateChessStats();
+            startChessGame();
+        }
+
+        // ============ HELPER FUNCTIONS ============
+        function showMessage(elementId, text, type) {
+            const element = document.getElementById(elementId);
+            element.textContent = text;
+            element.className = `message ${type}`;
+        }
+
+        // Initialisierung
         document.addEventListener('DOMContentLoaded', function() {
-            // Auto-focus username input
-            usernameInput.focus();
-            
-            // Update color preview
-            colorPreview.style.background = avatarColorInput.value;
+            initializeChess();
+            // Tic-Tac-Toe und Hangman Initialisierung hier einfügen
         });
     </script>
 </body>
