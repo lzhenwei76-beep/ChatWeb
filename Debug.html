@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NeonChat - Moderner Online Chatroom</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/10.5.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.5.0/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.5.0/firebase-firestore.js"></script>
+    <style>
+        /* CSS bleibt gleich wie oben */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+        }
+
+        :root {
+            --primary: #6366f1;
+            --primary-dark: #4f46e5;
+            --secondary: #8b5cf6;
+            --accent: #06b6d4;
+            --success: #10b981;
+            --danger: #ef4444;
+            --dark: #1e293b;
+            --light: #f8fafc;
+            --gray: #64748b;
+            --card-bg: rgba(255, 255, 255, 0.95);
+            --glass: rgba(255, 255, 255, 0.1);
+            --shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        body {
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            color: var(--light);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Login Modal */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(10px);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(20px);
+            border-radius: 25px;
+            padding: 40px;
+            width: 90%;
+            max-width: 400px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .modal-title {
+            text-align: center;
+            font-size: 2rem;
+            margin-bottom: 10px;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .modal-subtitle {
+            text-align: center;
+            color: var(--gray);
+            margin-bottom: 30px;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: var(--gray);
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.07);
+            border: 2px solid transparent;
+            border-radius: 12px;
+            color: white;
+            font-size: 1rem;
+            transition: var(--transition);
+        }
+
+        .input-group input:focus {
+            outline: none;
+            border-color: var(--primary);
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .btn-login {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            border: none;
+            border-radius: 12px;
+            color: white;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            margin-top: 10px;
+        }
+
+        .btn-login:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(99, 102, 241, 0.4);
+        }
+
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white;
+            padding: 15px 25px;
+            border-radius: 12px;
+            z-index: 1001;
+            display: none;
+        }
+
+        .debug-console {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(0, 0, 0, 0.8);
+            color: #10b981;
+            padding: 10px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 100px;
+            overflow-y: auto;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <!-- Debug Console -->
+    <div class="debug-console" id="debugConsole"></div>
+
+    <!-- Notification -->
+    <div class="notification" id="notification"></div>
+
+    <!-- Login Modal -->
+    <div class="modal" id="loginModal">
+        <div class="modal-content">
+            <h1 class="modal-title">
+                <i class="fas fa-comments"></i> NeonChat
+            </h1>
+            <p class="modal-subtitle">Willkommen im modernen Chatroom</p>
+            
+            <div class="input-group">
+                <label for="username">Benutzername</label>
+                <input type="text" id="username" placeholder="Gib deinen Namen ein" maxlength="20" value="TestUser">
+            </div>
+            
+            <div class="input-group">
+                <label for="avatarColor">Avatar-Farbe wählen</label>
+                <input type="color" id="avatarColor" value="#6366f1">
+            </div>
+            
+            <button class="btn-login" id="btnLogin">
+                <i class="fas fa-sign-in-alt"></i> Chat betreten
+            </button>
+
+            <div style="margin-top: 20px; padding: 10px; background: rgba(0,0,0,0.3); border-radius: 8px; font-size: 0.9em;">
+                <p><strong>Debug Info:</strong></p>
+                <p id="firebaseStatus">Firebase: Wird geladen...</p>
+                <button onclick="toggleDebug()" style="background: var(--accent); border: none; padding: 5px 10px; border-radius: 5px; color: white; margin-top: 5px; cursor: pointer;">
+                    Debug Console anzeigen
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Debug Funktionen
+        function logDebug(message) {
+            const debugConsole = document.getElementById('debugConsole');
+            debugConsole.innerHTML += new Date().toLocaleTimeString() + ': ' + message + '<br>';
+            debugConsole.scrollTop = debugConsole.scrollHeight;
+            console.log(message);
+        }
+
+        function showDebug() {
+            document.getElementById('debugConsole').style.display = 'block';
+        }
+
+        function toggleDebug() {
+            const console = document.getElementById('debugConsole');
+            console.style.display = console.style.display === 'block' ? 'none' : 'block';
+        }
+
+        // Firebase Konfiguration (DEINE KEYS)
+        const firebaseConfig = {
+            apiKey: "AIzaSyCaZVf_r56MRIdwrMJdj14ZCTgNmMhMlDk",
+            authDomain: "chatroom-2b0e7.firebaseapp.com",
+            projectId: "chatroom-2b0e7",
+            storageBucket: "chatroom-2b0e7.firebasestorage.app",
+            messagingSenderId: "465248399287",
+            appId: "1:465248399287:web:6739627062490ba719c232",
+            measurementId: "G-QL20XTKGR5"
+        };
+
+        logDebug('Firebase Konfiguration geladen...');
+
+        // Firebase initialisieren
+        let app;
+        let db;
+        let auth;
+        
+        try {
+            app = firebase.initializeApp(firebaseConfig);
+            db = firebase.firestore();
+            auth = firebase.auth();
+            logDebug('✅ Firebase erfolgreich initialisiert');
+            document.getElementById('firebaseStatus').textContent = 'Firebase: ✅ Initialisiert';
+            document.getElementById('firebaseStatus').style.color = '#10b981';
+        } catch (error) {
+            logDebug('❌ Firebase Initialisierung fehlgeschlagen: ' + error.message);
+            document.getElementById('firebaseStatus').textContent = 'Firebase: ❌ Fehler - ' + error.message;
+            document.getElementById('firebaseStatus').style.color = '#ef4444';
+            showNotification('Firebase Fehler: ' + error.message);
+        }
+
+        // App Zustand
+        let currentUser = null;
+
+        // DOM Elemente
+        const loginModal = document.getElementById('loginModal');
+        const usernameInput = document.getElementById('username');
+        const avatarColorInput = document.getElementById('avatarColor');
+        const btnLogin = document.getElementById('btnLogin');
+        const notification = document.getElementById('notification');
+
+        // Notification Funktion
+        function showNotification(text, duration = 3000) {
+            notification.textContent = text;
+            notification.style.display = 'block';
+            
+            setTimeout(() => {
+                notification.style.display = 'none';
+            }, duration);
+        }
+
+        // Vereinfachte Login-Funktion (OHNE Firestore zuerst)
+        async function loginUser() {
+            const username = usernameInput.value.trim();
+            const avatarColor = avatarColorInput.value;
+            
+            if (!username || username.length < 2) {
+                showNotification("Bitte gib einen gültigen Namen ein (mind. 2 Zeichen)");
+                return;
+            }
+
+            try {
+                logDebug('Versuche anonyme Authentifizierung...');
+                
+                // 1. Anonym anmelden
+                const userCredential = await auth.signInAnonymously();
+                logDebug('✅ Anonyme Authentifizierung erfolgreich');
+                
+                currentUser = {
+                    uid: userCredential.user.uid,
+                    username: username,
+                    avatarColor: avatarColor,
+                    status: 'online'
+                };
+
+                logDebug('Benutzer erstellt: ' + username);
+
+                // 2. Firestore testen (einfacher Test)
+                try {
+                    // Teste Firestore-Verbindung
+                    await db.collection('test').doc('connection-test').set({
+                        test: true,
+                        timestamp: new Date().toISOString()
+                    });
+                    logDebug('✅ Firestore-Verbindung erfolgreich');
+                    
+                    // Lösche Test-Dokument
+                    await db.collection('test').doc('connection-test').delete();
+                    
+                } catch (firestoreError) {
+                    logDebug('⚠️ Firestore Fehler: ' + firestoreError.message);
+                    // Firestore Fehler ignorieren für den Anfang
+                }
+
+                // 3. Lokalen Speicher für Offline-Test
+                localStorage.setItem('neonchat_user', JSON.stringify(currentUser));
+                logDebug('Benutzer im localStorage gespeichert');
+
+                // 4. Weiterleitung zur Chat-Seite
+                showNotification(`Willkommen, ${username}! Chat wird geladen...`);
+                
+                // Kurze Verzögerung für Notification
+                setTimeout(() => {
+                    // Zeige einfachen Chat
+                    showSimpleChat();
+                }, 1500);
+                
+            } catch (error) {
+                logDebug('❌ Login Fehler: ' + error.message);
+                showNotification("Login fehlgeschlagen: " + error.message);
+            }
+        }
+
+        // Einfacher Chat für den Anfang
+        function showSimpleChat() {
+            loginModal.style.display = 'none';
+            
+            // Erstelle einfache Chat-Oberfläche
+            document.body.innerHTML = `
+                <div style="padding: 20px; max-width: 800px; margin: 0 auto;">
+                    <h1 style="color: #6366f1; text-align: center;">🎉 Willkommen im Chat!</h1>
+                    <p style="text-align: center; color: #64748b;">Du bist eingeloggt als: ${currentUser.username}</p>
+                    
+                    <div style="background: rgba(255,255,255,0.05); border-radius: 15px; padding: 20px; margin-top: 30px;">
+                        <div id="simpleMessages" style="height: 400px; overflow-y: auto; margin-bottom: 20px; padding: 10px; background: rgba(0,0,0,0.2); border-radius: 10px;">
+                            <div style="padding: 10px; background: rgba(99, 102, 241, 0.2); border-radius: 10px; margin-bottom: 10px;">
+                                <strong>System:</strong> Willkommen im Chat! (Dies ist eine einfache Demo-Version)
+                            </div>
+                        </div>
+                        
+                        <div style="display: flex; gap: 10px;">
+                            <input type="text" id="simpleMessageInput" 
+                                   placeholder="Schreibe eine Nachricht..." 
+                                   style="flex: 1; padding: 12px; background: rgba(255,255,255,0.07); border: none; border-radius: 10px; color: white;">
+                            <button id="simpleSendBtn" 
+                                    style="padding: 12px 24px; background: linear-gradient(135deg, #6366f1, #8b5cf6); border: none; border-radius: 10px; color: white; cursor: pointer;">
+                                Senden
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top: 20px; text-align: center;">
+                        <button onclick="location.reload()" style="padding: 10px 20px; background: #ef4444; border: none; border-radius: 10px; color: white; cursor: pointer;">
+                            Abmelden
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            // Einfache Nachrichten-Funktionalität
+            const messageInput = document.getElementById('simpleMessageInput');
+            const sendBtn = document.getElementById('simpleSendBtn');
+            const messagesDiv = document.getElementById('simpleMessages');
+            
+            function addMessage(text, isOwn = true) {
+                const messageDiv = document.createElement('div');
+                messageDiv.style.cssText = `
+                    padding: 10px; 
+                    background: ${isOwn ? 'rgba(99, 102, 241, 0.3)' : 'rgba(255,255,255,0.1)'}; 
+                    border-radius: 10px; 
+                    margin-bottom: 10px;
+                    margin-left: ${isOwn ? '20px' : '0'};
+                    margin-right: ${isOwn ? '0' : '20px'};
+                `;
+                messageDiv.innerHTML = `
+                    <strong>${isOwn ? currentUser.username : 'Anderer Benutzer'}:</strong> ${text}
+                    <div style="font-size: 0.8em; color: #94a3b8; margin-top: 5px;">
+                        ${new Date().toLocaleTimeString()}
+                    </div>
+                `;
+                messagesDiv.appendChild(messageDiv);
+                messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            }
+            
+            sendBtn.addEventListener('click', () => {
+                const text = messageInput.value.trim();
+                if (text) {
+                    addMessage(text, true);
+                    messageInput.value = '';
+                    
+                    // Automatische Antwort (Demo)
+                    setTimeout(() => {
+                        const responses = [
+                            "Hallo! Wie geht's?",
+                            "Interessant!",
+                            "Das ist eine coole Demo, oder?",
+                            "Firebase ist super für Chats!",
+                            "Probier mal einen richtigen Raum zu erstellen!"
+                        ];
+                        addMessage(responses[Math.floor(Math.random() * responses.length)], false);
+                    }, 1000);
+                }
+            });
+            
+            messageInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    sendBtn.click();
+                }
+            });
+            
+            messageInput.focus();
+        }
+
+        // Event Listener
+        btnLogin.addEventListener('click', loginUser);
+        usernameInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') loginUser();
+        });
+
+        // Teste Firebase beim Laden
+        window.addEventListener('load', () => {
+            logDebug('Seite geladen');
+            usernameInput.focus();
+            
+            // Prüfe ob schon eingeloggt
+            const savedUser = localStorage.getItem('neonchat_user');
+            if (savedUser) {
+                try {
+                    currentUser = JSON.parse(savedUser);
+                    usernameInput.value = currentUser.username;
+                    avatarColorInput.value = currentUser.avatarColor;
+                    logDebug('Gespeicherter Benutzer gefunden');
+                } catch (e) {
+                    logDebug('Kein gespeicherter Benutzer');
+                }
+            }
+        });
+
+        // Zeige Debug-Console wenn F12 gedrückt wird
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'F12') {
+                toggleDebug();
+            }
+        });
+    </script>
+</body>
+</html>
